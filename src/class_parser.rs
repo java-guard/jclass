@@ -1,26 +1,16 @@
 use crate::common::{MessageError, Result, ToResult};
 use crate::jclass_info::{JClassInfo, LazyValue};
 use crate::util::byte_utils::{bytes_to_u16_be, bytes_to_u32_be};
-use std::fmt::Debug;
 use std::io::Read;
 
 pub type ReadBox = Box<dyn Read>;
 
-pub const JCLASS_MAGIC: [u8;4] = [0xCA, 0xFE, 0xBA, 0xBE];
-pub const JCLASS_MAGIC_: u32 = 0xCAFEBABE;
+pub const JCLASS_MAGIC: u32 = 0xCAFEBABE;
 
 pub struct ClassParser {
     read: ReadBox,
     jclass_info: JClassInfo,
 }
-
-// impl Debug for ClassParser {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("JClassInfo")
-//             .field("jclass_info", &self.jclass_info)
-//             .finish()
-//     }
-// }
 
 macro_rules! check_and_load_latest {
     ($var:expr, $field:ident) => {
@@ -92,7 +82,7 @@ impl ClassParser {
         class_info_field_get!(self.jclass_info.magic, {
             match self.read_class_bytes_u32("魔术头") {
                 Ok(magic_value) => {
-                    if magic_value != JCLASS_MAGIC_ {
+                    if magic_value != JCLASS_MAGIC {
                         LazyValue::Err(MessageError::new("解析数据非class文件"))
                     } else {
                         LazyValue::Some(magic_value)
@@ -121,6 +111,6 @@ impl ClassParser {
     }
 }
 
-pub fn parse() {
-
-}
+// pub fn parse() {
+//
+// }
