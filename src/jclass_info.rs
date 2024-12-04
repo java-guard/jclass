@@ -50,11 +50,18 @@ impl<T: Clone> LazyValue<T> {
             _ => true
         }
     }
+
+    pub fn is_err(&self) -> bool {
+        match self {
+            LazyValue::Err(_) => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct JClassInfo {
-    pub (crate) magic: LazyValue<[u8;4]>,
+    pub (crate) magic: LazyValue<u32>,
     pub (crate) minor_version: LazyValue<u16>,
     pub (crate) major_version: LazyValue<u16>,
     pub (crate) constant_value: LazyValue<ConstantValue>,
@@ -72,10 +79,10 @@ pub struct JClassInfo {
 }
 
 impl JClassInfo {
-    pub fn magic(&self) -> Option<[u8;4]> {
+    pub fn magic(&self) -> Option<u32> {
         self.magic.to_option()
     }
-    pub fn set_magic(&mut self, value: [u8;4]) {
+    pub fn set_magic(&mut self, value: u32) {
         self.magic.some(value);
     }
     pub fn minor_version(&self) -> Option<u16> {

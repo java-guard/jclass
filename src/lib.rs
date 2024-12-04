@@ -6,6 +6,7 @@ mod class_parser;
 mod constant_pool;
 mod common;
 mod jclass_info;
+mod util;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
