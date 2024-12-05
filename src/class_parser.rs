@@ -2,6 +2,7 @@ use crate::common::{MessageError, Result, ToResult};
 use crate::jclass_info::{JClassInfo, LazyValue};
 use crate::util::byte_utils::{bytes_to_u16_be, bytes_to_u32_be};
 use std::io::Read;
+use crate::constant_pool::ConstantPool;
 
 pub type ReadBox = Box<dyn Read>;
 
@@ -98,6 +99,16 @@ impl ClassParser {
     pub fn major_version(&mut self) -> Result<u16> {
         check_latest_and_get!(self, major_version, minor_version, "主版本")
     }
+    fn read_constant_pool(&mut self) -> Result<u16> {
+        let name = "常量池";
+        let bytes = self.read_class_bytes(name, 2)?;
+        let pool_count = bytes_to_u16_be(&bytes);
+        let pool = ConstantPool::new(pool_count);
+        for index in 1..pool_count {
+            
+        }
+        Ok(1)
+    }
     pub fn constant_pool(&mut self) -> Result<u16> {
         check_and_load_latest!(self, major_version);
         let bytes = self.read_class_bytes("常量池", 2)?;
@@ -106,8 +117,12 @@ impl ClassParser {
         Ok(1)
     }
 
-    pub fn get_jclass_info(&self) -> JClassInfo {
-        self.jclass_info.clone()
+    pub fn get_jclass_info(&self) -> &JClassInfo {
+        &self.jclass_info
+    }
+
+    pub fn get_jclass_info_mut(&mut self) -> &JClassInfo {
+        &mut self.jclass_info
     }
 }
 

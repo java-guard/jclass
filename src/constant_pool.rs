@@ -8,6 +8,7 @@ pub struct RefInfo {
 
 #[derive(Clone, Debug)]
 pub enum ConstantValue {
+    Null,
     // name index
     ConstantClass(u16),
     ConstantFieldref(RefInfo),
@@ -39,6 +40,7 @@ pub enum ConstantValue {
 impl ConstantValue {
     pub fn byte(&self) -> u8 {
         let result = match self {
+            ConstantValue::Null => 0,
             ConstantValue::ConstantClass(_) => JVM_CONSTANT_Class,
             ConstantValue::ConstantFieldref(_) => JVM_CONSTANT_Fieldref,
             ConstantValue::ConstantMethodref(_) => JVM_CONSTANT_Methodref,
@@ -63,7 +65,43 @@ impl ConstantValue {
     }
 }
 
-pub struct ConstPool {
-    count: u16,
+#[derive(Debug, Clone)]
+pub struct ConstantItem {
+    index: u16,
+    value: ConstantValue
+}
 
+#[derive(Debug, Clone)]
+pub struct ConstantPool {
+    count: u16,
+    values: Vec<ConstantItem>
+}
+
+impl ConstantPool {
+    pub fn new(size: u16) -> ConstantPool {
+        let mut pool = ConstantPool {
+            count: 0,
+            values: Vec::with_capacity(size as usize)
+        };
+        pool.values.push(ConstantItem {
+            index: 0,
+            value: ConstantValue::Null
+        });
+        pool
+    }
+
+    // pub fn add_constant_item(&mut self, item: ConstantItem) -> u16 {
+    //     self.count += 1;
+    //     self.values.push(item);
+    //     self.count
+    // }
+
+    pub fn add_constant(&mut self, value: ConstantValue) -> u16 {
+        self.count += 1;
+        self.values.push(ConstantItem {
+            index: self.count,
+            value
+        });
+        self.count
+    }
 }
