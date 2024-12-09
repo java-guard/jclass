@@ -1,5 +1,5 @@
 use crate::common::MessageError;
-use crate::constant_pool::ConstantValue;
+use crate::constant_pool::ConstantPool;
 use std::mem;
 
 #[derive(Clone, Debug)]
@@ -35,6 +35,13 @@ impl<T: Clone> LazyValue<T> {
             _ => None
         }
     }
+    pub fn to_option_with_err(&self) -> crate::common::Result<Option<T>> {
+        match self {
+            LazyValue::Some(v) => Ok(Some(v.clone())),
+            LazyValue::Err(e) => Err(e.clone()),
+            _ => Ok(None)
+        }
+    }
 
     pub fn to_result(&self, name: &str) -> crate::common::Result<T> {
         match self {
@@ -64,10 +71,11 @@ pub struct JClassInfo {
     pub (crate) magic: LazyValue<u32>,
     pub (crate) minor_version: LazyValue<u16>,
     pub (crate) major_version: LazyValue<u16>,
-    pub (crate) constant_value: LazyValue<ConstantValue>,
+    pub (crate) constant_pool: LazyValue<ConstantPool>,
     pub (crate) access_flags: LazyValue<u16>,
     pub (crate) class_index: LazyValue<u16>,
     pub (crate) superclass_index: LazyValue<u16>,
+    pub (crate) interfaces: LazyValue<Vec<u16>>,
     pub (crate) interfaces_count: LazyValue<u16>,
     pub (crate) interfaces_index: LazyValue<u16>,
     pub (crate) fields_count: LazyValue<u16>,
@@ -97,11 +105,11 @@ impl JClassInfo {
     pub fn set_major_version(&mut self, value: u16) {
         self.major_version.some(value);
     }
-    pub fn constant_value(&self) -> Option<ConstantValue> {
-        self.constant_value.to_option()
+    pub fn constant_value(&self) -> Option<ConstantPool> {
+        self.constant_pool.to_option()
     }
-    pub fn set_constant_value(&mut self, value: ConstantValue) {
-        self.constant_value.some(value);
+    pub fn set_constant_value(&mut self, value: ConstantPool) {
+        self.constant_pool.some(value);
     }
     pub fn access_flags(&self) -> Option<u16> {
         self.access_flags.to_option()

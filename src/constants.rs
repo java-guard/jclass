@@ -1,0 +1,24 @@
+
+pub const ANNOTATION_DEFAULT_TAG: &str = "AnnotationDefault";
+pub const RUNTIME_VISIBLE_ANNOTATIONS_VISIBLE_TAG: &str = "RuntimeVisibleAnnotations";
+pub const RUNTIME_INVISIBLE_ANNOTATIONS_INVISIBLE_TAG: &str = "RuntimeInvisibleAnnotations";
+pub const BOOTSTRAP_METHODS_TAG: &str = "BootstrapMethods";
+pub const CODE_TAG: &str = "Code";
+pub const CONSTANT_VALUE_TAG: &str = "ConstantValue";
+pub const DEPRECATED_TAG: &str = "Deprecated";
+pub const ENCLOSING_METHOD_TAG: &str = "EnclosingMethod";
+pub const EXCEPTIONS_TAG: &str = "Exceptions";
+pub const INNER_CLASSES_TAG: &str = "InnerClasses";
+pub const LINE_NUMBER_TABLE_TAG: &str = "LineNumberTable";
+pub const LOCAL_VARIABLE_TABLE_TAG: &str = "LocalVariableTable";
+pub const LOCAL_VARIABLE_TYPE_TABLE_TYPE_TAG: &str = "LocalVariableTypeTable";
+pub const METHOD_PARAMETERS_TAG: &str = "MethodParameters";
+pub const NEST_HOST_TAG: &str = "NestHost";
+pub const NEST_MEMBERS_TAG: &str = "NestMembers";
+pub const SIGNATURE_TAG: &str = "Signature";
+pub const SOURCE_FILE_TAG: &str = "SourceFile";
+pub const STACK_MAP_TAG: &str = "StackMap";
+pub const STACK_MAP_TABLE_TAG: &str = "StackMapTable";
+pub const SYNTHETIC_TAG: &str = "Synthetic";
+pub const RUNTIME_VISIBLE_TYPE_ANNOTATIONS_VISIBLE_TAG: &str = "RuntimeVisibleTypeAnnotations";
+pub const RUNTIME_INVISIBLE_TYPE_ANNOTATIONS_INVISIBLE_TAG: &str = "RuntimeInvisibleTypeAnnotations";

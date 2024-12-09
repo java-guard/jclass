@@ -7,6 +7,9 @@ mod constant_pool;
 mod common;
 mod jclass_info;
 mod util;
+mod field_info;
+mod attribute_info;
+mod constants;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
@@ -20,7 +23,7 @@ mod tests {
     fn test_parser() {
         let content = File::open("D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class").unwrap();
         let mut  info = ClassParser::new(content);
-        let _result = info.major_version().unwrap();
+        let _result = info.interfaces().unwrap();
         // let result = info.magic().unwrap();
         println!("{:#?}", &info.get_jclass_info());
         // let result = info.minor_version().unwrap();
