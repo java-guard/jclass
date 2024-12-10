@@ -1,9 +1,7 @@
 use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref, JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String, JVM_CONSTANT_Utf8};
-use crate::common::{MessageError, Result, ToResult};
-use crate::util::byte_utils::bytes_to_u16_be;
-use crate::util::io_utils::{read_class_bytes, read_class_bytes_u16};
+use crate::common::{MessageError, Reader, Result, ToResult};
+use crate::util::reader_utils::{read_bytes_with_pre_size, ReadToType};
 use std::io::Read;
-use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct RefInfo {
@@ -61,15 +59,15 @@ impl RefInfo {
             name_type_index
         }
     }
-    pub fn new_with_reader<T: Read>(reader: &mut T) -> Result<RefInfo> {
-        let class_index = read_class_bytes_u16(reader, "ref: class index 值读取失败")?;
-        let name_type_index = read_class_bytes_u16(reader, "ref: name type index 值读取失败")?;
+    pub fn new_with_reader(reader: &mut Reader) -> Result<RefInfo> {
+        let class_index: u16 = reader.read_to("ref: class index 值读取失败")?;
+        let name_type_index: u16 = reader.read_to("ref: name type index 值读取失败")?;
         Ok(RefInfo::new(class_index, name_type_index))
     }
 }
 
 impl ConstantValue {
-    pub fn new_with_reader<T: Read>(reader: &mut T) -> Result<ConstantValue> {
+    pub fn new_with_reader(reader: &mut Reader) -> Result<ConstantValue> {
         let mut single_byte = [0;1];
         let len = reader.read(&mut single_byte).with_message("常量类型读取出错")?;
         if len != 1 {
@@ -77,7 +75,7 @@ impl ConstantValue {
         }
         Ok(match single_byte[0] as i32 {
             JVM_CONSTANT_Class => {
-                ConstantValue::ConstantClass(read_class_bytes_u16(reader, "Class常量")?)
+                ConstantValue::ConstantClass(reader.read_to("Class常量")?)
             }
             JVM_CONSTANT_Fieldref => {
                 ConstantValue::ConstantFieldref(RefInfo::new_with_reader(reader)?)
@@ -89,66 +87,59 @@ impl ConstantValue {
                 ConstantValue::ConstantInterfaceMethodref(RefInfo::new_with_reader(reader)?)
             }
             JVM_CONSTANT_String => {
-                ConstantValue::ConstantString(read_class_bytes_u16(reader, "String常量")?)
+                ConstantValue::ConstantString(reader.read_to("String常量")?)
             }
             JVM_CONSTANT_Integer => {
-                let bytes = read_class_bytes(reader, "Integer常量", 4)?;
-                // Ok(i32::from_be_bytes(bytes.try_into().unwrap()))
-                ConstantValue::ConstantInteger(i32::from_be_bytes(bytes.try_into().unwrap()))
-                // ConstantValue::ConstantInteger(read_class_bytes_u32(reader, "Class常量")? as i32)
+                ConstantValue::ConstantInteger(reader.read_to("Integer常量")?)
             }
             JVM_CONSTANT_Float => {
-                let bytes = read_class_bytes(reader, "Float常量", 4)?;
-                ConstantValue::ConstantFloat(f32::from_be_bytes(bytes.try_into().unwrap()))
+                ConstantValue::ConstantFloat(reader.read_to("Float常量")?)
             }
             JVM_CONSTANT_Long => {
-                let bytes = read_class_bytes(reader, "Long常量", 8)?;
-                ConstantValue::ConstantLong(i64::from_be_bytes(bytes.try_into().unwrap()))
+                ConstantValue::ConstantLong(reader.read_to("Long常量")?)
             }
             JVM_CONSTANT_Double => {
-                let bytes = read_class_bytes(reader, "Double常量", 8)?;
-                ConstantValue::ConstantDouble(f64::from_be_bytes(bytes.try_into().unwrap()))
+                ConstantValue::ConstantDouble(reader.read_to("Double常量")?)
             }
             JVM_CONSTANT_NameAndType => {
-                let name_index = read_class_bytes_u16(reader, "名字和描述符常量")?;
-                let type_index = read_class_bytes_u16(reader, "名字和描述符常量")?;
+                let name_index: u16 = reader.read_to("名字和描述符常量")?;
+                let type_index: u16 = reader.read_to("名字和描述符常量")?;
                 ConstantValue::ConstantNameAndType(name_index, type_index)
             }
             JVM_CONSTANT_Utf8 => {
-                let now = Instant::now();
-
-                let str_len = read_class_bytes_u16(reader, "UTF8字符串常量")?;
-                let str_bytes = read_class_bytes(reader, "UTF8字符串常量", str_len as usize)?;
-                println!(">>>> str b : {:?}", now.elapsed());
-                let now = Instant::now();
+                // todo 记得删
+                // let now = Instant::now();
+                let str_bytes = read_bytes_with_pre_size(reader, "UTF8字符串常量")?;
+                // println!(">>>> str b : {:?}", now.elapsed());
+                // let now = Instant::now();
                 let string = String::from_utf8(str_bytes).with_message("UTF8常量读取出错")?;
-                println!(">>>> str : {:?}", now.elapsed());
+                // println!(">>>> str : {:?}", now.elapsed());
                 ConstantValue::ConstantUtf8(string)
             }
             JVM_CONSTANT_MethodHandle => {
-                let kind_byte = read_class_bytes(reader, "Method Handle常量", 1)?;
-                let ref_index = read_class_bytes_u16(reader, "Method Handle常量",)?;
-                ConstantValue::ConstantMethodHandle(kind_byte[0], ref_index)
+                let kind_byte: u8 = reader.read_to("Method Handle常量")?;
+                let ref_index: u16 = reader.read_to("Method Handle常量",)?;
+                ConstantValue::ConstantMethodHandle(kind_byte, ref_index)
             }
             JVM_CONSTANT_MethodType => {
-                ConstantValue::ConstantMethodType(read_class_bytes_u16(reader, "MethodType常量")?)
+                ConstantValue::ConstantMethodType(reader.read_to("MethodType常量")?)
             }
             JVM_CONSTANT_Dynamic => {
-                let bootstrap = read_class_bytes_u16(reader, "Dynamic常量",)?;
-                let name_and_type_index = read_class_bytes_u16(reader, "Dynamic常量",)?;
+                let bootstrap: u16 = reader.read_to("Dynamic常量",)?;
+                let name_and_type_index: u16 = reader.read_to("Dynamic常量",)?;
                 ConstantValue::ConstantDynamic(bootstrap, name_and_type_index)
             }
             JVM_CONSTANT_InvokeDynamic => {
-                let bootstrap = read_class_bytes_u16(reader, "InvokeDynamic常量")?;
-                let name_and_type_index = read_class_bytes_u16(reader, "InvokeDynamic常量")?;
+                let bootstrap: u16 = reader.read_to("InvokeDynamic常量")?;
+                let name_and_type_index: u16 = reader.read_to("InvokeDynamic常量")?;
                 ConstantValue::ConstantInvokeDynamic(bootstrap, name_and_type_index)
             }
             JVM_CONSTANT_Module => {
-                let index = read_class_bytes_u16(reader, "模块名常量")?;
+                let index: u16 = reader.read_to("模块名常量")?;
                 ConstantValue::ConstantModule(index)
             }
             JVM_CONSTANT_Package => {
-                let index = read_class_bytes_u16(reader, "包名常量")?;
+                let index: u16 = reader.read_to("包名常量")?;
                 ConstantValue::ConstantPackage(index)
             }
             _ => {
@@ -195,16 +186,15 @@ impl ConstantPool {
         });
         pool
     }
-    pub fn new_with_reader<T: Read>(reader: &mut T) -> Result<ConstantPool> {
+    pub fn new_with_reader(reader: &mut Reader) -> Result<ConstantPool> {
         // let now = Instant::now();
         let name = "常量池";
-        let bytes = read_class_bytes(reader, name, 2)?;
-        let pool_count = bytes_to_u16_be(&bytes);
+        let pool_count: u16 = reader.read_to(name)?;
         let mut pool = ConstantPool::new(pool_count);
         for _ in 1..pool_count {
-            let now = Instant::now();
+            // let now = Instant::now();
             let value = ConstantValue::new_with_reader(reader)?;
-            println!(">>>> pool item: {:?}: {:?}", now.elapsed(), &value);
+            // println!(">>>> pool item: {:?}: {:?}", now.elapsed(), &value);
             pool.add_constant(value);
         }
         // println!(">>> pool: {:?}", now.elapsed());

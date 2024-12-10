@@ -1,6 +1,6 @@
 use crate::attribute_info::{AttributeInfo, SimpleAttribute};
-use crate::util::io_utils::read_class_bytes_u16;
-use std::io::Read;
+use crate::common::Reader;
+use crate::util::reader_utils::ReadToType;
 
 #[derive(Clone, Debug)]
 pub struct MethodInfo {
@@ -11,14 +11,14 @@ pub struct MethodInfo {
 }
 
 impl MethodInfo {
-    pub fn new_from_reader<T: Read>(reader: &mut T) -> crate::common::Result<MethodInfo> {
-        let access_flags = read_class_bytes_u16(reader, "方法访问标识")?;
-        let name = read_class_bytes_u16(reader, "方法名")?;
-        let descriptor = read_class_bytes_u16(reader, "方法描述")?;
-        let attribute_size = read_class_bytes_u16(reader, "方法属性数量")?;
+    pub fn new_from_reader(reader: &mut Reader) -> crate::common::Result<MethodInfo> {
+        let access_flags: u16 = reader.read_to("方法访问标识")?;
+        let name: u16 = reader.read_to("方法名")?;
+        let descriptor: u16 = reader.read_to("方法描述")?;
+        let attribute_size: u16 = reader.read_to("方法属性数量")?;
         let mut attributes = Vec::with_capacity(attribute_size as usize);
         for _ in 0..attribute_size {
-            let attribute_name = read_class_bytes_u16(reader, "方法属性名")?;
+            let attribute_name: u16 = reader.read_to("方法属性名")?;
             attributes.push(AttributeInfo::SimpleAttribute(SimpleAttribute::new_from_reader(reader, attribute_name)?))
         }
         Ok(MethodInfo {

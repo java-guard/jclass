@@ -1,13 +1,11 @@
 use crate::attribute_info::AttributeInfo;
-use crate::common::{MessageError, Result};
+use crate::common::{MessageError, Reader, Result};
 use crate::constant_pool::ConstantPool;
 use crate::field_info::FieldInfo;
 use crate::jclass_info::{JClassInfo, LazyValue};
 use crate::method_info::MethodInfo;
-use crate::util::io_utils::{read_class_bytes_u16, read_class_bytes_u32};
+use crate::util::reader_utils::{ReadToType};
 use std::io::Read;
-
-pub type Reader = Box<dyn Read>;
 
 pub const JCLASS_MAGIC: u32 = 0xCAFEBABE;
 
@@ -44,7 +42,7 @@ macro_rules! check_latest_and_get {
         {
             check_and_load_latest!($var, $latest_field);
             class_info_field_get!($var.jclass_info.$field, {
-                match read_class_bytes_u16(&mut $var.reader, $name) {
+                match ReadToType::<u16>::read_to(&mut $var.reader, $name) {
                     Ok(value) => {
                         LazyValue::Some(value)
                     }
@@ -60,24 +58,26 @@ macro_rules! check_latest_and_get_mul {
         {
             check_and_load_latest!($var, $latest_field);
             class_info_field_get!($var.jclass_info.$field, {
-                match read_class_bytes_u16(&mut $var.reader, concat!($name, "数量")) {
+                match ReadToType::<u16>::read_to(&mut $var.reader, concat!($name, "数量")) {
                     Ok(size) => {
                         let size = size as usize;
                         let mut values = Vec::with_capacity(size);
-                        let mut failed = false;
+                        // let mut failed = false;
+                        let mut err = None;
                         for _ in 0..size {
                             match $item_get {
                                 Ok(val) => {
                                     values.push(val);
                                 }
-                                Err(_) => {
-                                    failed = true;
+                                Err(e) => {
+                                    err = Some(e);
+                                    // failed = true;
                                     break;
                                 }
                             }
                         }
-                        if failed {
-                            LazyValue::Err(MessageError::new(concat!("读取", $name, "失败")))
+                        if let Some(e) = err {
+                            LazyValue::Err(e)
                         } else {
                             LazyValue::Some(values)
                         }
@@ -101,7 +101,7 @@ impl ClassParser {
 
     pub fn magic(&mut self) -> Result<u32> {
         class_info_field_get!(self.jclass_info.magic, {
-            match read_class_bytes_u32(&mut self.reader, "魔术头") {
+            match self.reader.read_to("魔术头") {
                 Ok(magic_value) => {
                     if magic_value != JCLASS_MAGIC {
                         LazyValue::Err(MessageError::new("解析数据非class文件"))
@@ -143,7 +143,7 @@ impl ClassParser {
 
     pub fn interfaces(&mut self) -> Result<Vec<u16>> {
         check_latest_and_get_mul!(self, interfaces, superclass_index, "接口",
-            read_class_bytes_u16(&mut self.reader, "接口数量"))
+            self.reader.read_to("接口数量"))
     }
 
     pub fn fields(&mut self) -> Result<Vec<FieldInfo>> {

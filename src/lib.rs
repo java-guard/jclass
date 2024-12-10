@@ -1,5 +1,7 @@
-use std::fs::File;
 use crate::class_parser::ClassParser;
+use std::fs::File;
+use std::io::BufReader;
+use std::time::Instant;
 
 mod classfile_constants;
 mod class_parser;
@@ -12,16 +14,12 @@ mod attribute_info;
 mod constants;
 mod method_info;
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::fs::read;
     use std::io::{BufReader, Cursor};
     use std::time::Instant;
-    use super::*;
 
     #[test]
     fn test_parser() {
@@ -49,70 +47,88 @@ mod tests {
 
     #[test]
     fn test_parser_step() {
-        let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
+        // let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
+        let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
         let content = File::open(file_path).unwrap();
         let mut  info = ClassParser::new(BufReader::new(content));
 
+        let mut total = 0;
         let now = Instant::now();
         info.magic().unwrap();
         let duration = now.elapsed();
+        total += duration.as_nanos();
         println!(">> magic: {:?}", duration);
 
         let now = Instant::now();
         info.minor_version().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> minor_version: {:?}", duration);
 
         let now = Instant::now();
         info.major_version().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> major_version: {:?}", duration);
 
         let now = Instant::now();
         info.constant_pool().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> constant_pool: {:?}", duration);
 
         let now = Instant::now();
         info.access_flags().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> access_flags: {:?}", duration);
 
         let now = Instant::now();
         info.class_index().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> class_index: {:?}", duration);
 
         let now = Instant::now();
         info.superclass_index().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> superclass_index: {:?}", duration);
 
         let now = Instant::now();
         info.interfaces().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> interfaces: {:?}", duration);
 
         let now = Instant::now();
         info.fields().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> fields: {:?}", duration);
 
         let now = Instant::now();
         info.methods().unwrap();
         let duration = now.elapsed();
+
+        total += duration.as_nanos();
         println!(">> methods: {:?}", duration);
 
         let now = Instant::now();
         info.attributes().unwrap();
         let duration = now.elapsed();
-        println!(">> attributes: {:?}", duration);
-    }
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+        total += duration.as_nanos();
+        println!(">> attributes: {:?}", duration);
+        println!(">> total: {:?} ns", total);
     }
 }
 
