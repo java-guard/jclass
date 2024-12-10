@@ -1,6 +1,8 @@
 use std::io::Read;
-use crate::util::io_utils::{read_class_bytes, read_class_bytes_u32};
+use crate::constant_pool::ConstantPool;
+use crate::util::io_utils::{read_class_bytes, read_class_bytes_u16, read_class_bytes_u32};
 
+#[derive(Clone, Debug)]
 pub enum AttributeInfo {
     AnnotationDefaultAttribute,
     BootstrapMethodsAttribute,
@@ -27,9 +29,18 @@ pub enum AttributeInfo {
     SimpleAttribute(SimpleAttribute),
 }
 
+#[derive(Clone, Debug)]
 pub struct SimpleAttribute {
     name: u16,
     data: Vec<u8>
+}
+
+impl AttributeInfo {
+    pub fn new_from_reader<T: Read>(reader: &mut T, pool: &ConstantPool) -> crate::common::Result<AttributeInfo> {
+        let name_index = read_class_bytes_u16(reader, "属性")?;
+        // todo
+        Ok(AttributeInfo::SimpleAttribute(SimpleAttribute::new_from_reader(reader, name_index)?))
+    }
 }
 
 impl SimpleAttribute {

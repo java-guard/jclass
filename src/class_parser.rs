@@ -1,6 +1,9 @@
+use crate::attribute_info::AttributeInfo;
 use crate::common::{MessageError, Result};
 use crate::constant_pool::ConstantPool;
+use crate::field_info::FieldInfo;
 use crate::jclass_info::{JClassInfo, LazyValue};
+use crate::method_info::MethodInfo;
 use crate::util::io_utils::{read_class_bytes_u16, read_class_bytes_u32};
 use std::io::Read;
 
@@ -46,6 +49,42 @@ macro_rules! check_latest_and_get {
                         LazyValue::Some(value)
                     }
                     Err(e) => LazyValue::Err(e)
+                }
+            }).to_result($name)
+        }
+    };
+}
+
+macro_rules! check_latest_and_get_mul {
+    ($var:expr, $field:ident, $latest_field:ident, $name:expr, $item_get:expr) => {
+        {
+            check_and_load_latest!($var, $latest_field);
+            class_info_field_get!($var.jclass_info.$field, {
+                match read_class_bytes_u16(&mut $var.reader, concat!($name, "数量")) {
+                    Ok(size) => {
+                        let size = size as usize;
+                        let mut values = Vec::with_capacity(size);
+                        let mut failed = false;
+                        for _ in 0..size {
+                            match $item_get {
+                                Ok(val) => {
+                                    values.push(val);
+                                }
+                                Err(_) => {
+                                    failed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if failed {
+                            LazyValue::Err(MessageError::new(concat!("读取", $name, "失败")))
+                        } else {
+                            LazyValue::Some(values)
+                        }
+                    }
+                    Err(_) => {
+                        LazyValue::Err(MessageError::new(concat!("读取", $name, "数量失败")))
+                    }
                 }
             }).to_result($name)
         }
@@ -102,35 +141,36 @@ impl ClassParser {
         check_latest_and_get!(self, superclass_index, class_index, "父类索引")
     }
 
-    fn interfaces_read(&mut self) -> LazyValue<Vec<u16>> {
-        match read_class_bytes_u16(&mut self.reader, "接口数量") {
-            Ok(size) => {
-                // if size == 0 {
-                //     return LazyValue::None;
-                // }
-                let size = size as usize;
-                let mut interfaces = Vec::with_capacity(size);
-                for _ in 0..size {
-                    match read_class_bytes_u16(&mut self.reader, "接口索引") {
-                        Ok(index) => {
-                            interfaces.push(index);
-                        }
-                        Err(_) => {
-                            return LazyValue::Err(MessageError::new("读取接口索引失败"))
-                        }
-                    }
-                }
-                LazyValue::Some(interfaces)
-            }
-            Err(_) => {
-                LazyValue::Err(MessageError::new("读取接口数量失败"))
-            }
-        }
+    pub fn interfaces(&mut self) -> Result<Vec<u16>> {
+        check_latest_and_get_mul!(self, interfaces, superclass_index, "接口",
+            read_class_bytes_u16(&mut self.reader, "接口数量"))
     }
 
-    pub fn interfaces(&mut self) -> Result<Vec<u16>> {
-        check_and_load_latest!(self, superclass_index);
-        class_info_field_get!(self.jclass_info.interfaces, {self.interfaces_read()}).to_result("接口")
+    pub fn fields(&mut self) -> Result<Vec<FieldInfo>> {
+        check_latest_and_get_mul!(self, fields, interfaces, "字段",
+            FieldInfo::new_from_reader(&mut self.reader))
+    }
+
+    pub fn methods(&mut self) -> Result<Vec<MethodInfo>> {
+        check_latest_and_get_mul!(self, methods, fields, "方法",
+            MethodInfo::new_from_reader(&mut self.reader))
+    }
+
+    pub fn attributes(&mut self) -> Result<Vec<AttributeInfo>> {
+        check_latest_and_get_mul!(self, attributes, methods, "属性",
+            match &self.jclass_info.constant_pool {
+                LazyValue::Some(pool) => {
+                    AttributeInfo::new_from_reader(&mut self.reader, pool)
+                }
+                _ => {
+                    Err(MessageError::new("常量池数据异常"))
+                }
+            })
+    }
+
+    pub fn load_all(&mut self) -> Result<()> {
+        self.attributes()?;
+        Ok(())
     }
 
     pub fn get_jclass_info(&self) -> &JClassInfo {

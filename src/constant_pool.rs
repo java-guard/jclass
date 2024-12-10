@@ -3,6 +3,7 @@ use crate::common::{MessageError, Result, ToResult};
 use crate::util::byte_utils::bytes_to_u16_be;
 use crate::util::io_utils::{read_class_bytes, read_class_bytes_u16};
 use std::io::Read;
+use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct RefInfo {
@@ -114,9 +115,15 @@ impl ConstantValue {
                 ConstantValue::ConstantNameAndType(name_index, type_index)
             }
             JVM_CONSTANT_Utf8 => {
+                let now = Instant::now();
+
                 let str_len = read_class_bytes_u16(reader, "UTF8字符串常量")?;
                 let str_bytes = read_class_bytes(reader, "UTF8字符串常量", str_len as usize)?;
-                ConstantValue::ConstantUtf8(String::from_utf8(str_bytes).with_message("UTF8常量读取出错")?)
+                println!(">>>> str b : {:?}", now.elapsed());
+                let now = Instant::now();
+                let string = String::from_utf8(str_bytes).with_message("UTF8常量读取出错")?;
+                println!(">>>> str : {:?}", now.elapsed());
+                ConstantValue::ConstantUtf8(string)
             }
             JVM_CONSTANT_MethodHandle => {
                 let kind_byte = read_class_bytes(reader, "Method Handle常量", 1)?;
@@ -189,14 +196,18 @@ impl ConstantPool {
         pool
     }
     pub fn new_with_reader<T: Read>(reader: &mut T) -> Result<ConstantPool> {
+        // let now = Instant::now();
         let name = "常量池";
         let bytes = read_class_bytes(reader, name, 2)?;
         let pool_count = bytes_to_u16_be(&bytes);
         let mut pool = ConstantPool::new(pool_count);
         for _ in 1..pool_count {
+            let now = Instant::now();
             let value = ConstantValue::new_with_reader(reader)?;
+            println!(">>>> pool item: {:?}: {:?}", now.elapsed(), &value);
             pool.add_constant(value);
         }
+        // println!(">>> pool: {:?}", now.elapsed());
         Ok(pool)
     }
 
