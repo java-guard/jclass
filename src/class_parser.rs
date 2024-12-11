@@ -1,16 +1,16 @@
+use std::io::Read;
 use crate::attribute_info::AttributeInfo;
-use crate::common::{MessageError, Reader, Result};
+use crate::error::{MessageError, Result};
 use crate::constant_pool::ConstantPool;
 use crate::field_info::FieldInfo;
 use crate::jclass_info::{JClassInfo, LazyValue};
 use crate::method_info::MethodInfo;
-use crate::util::reader_utils::{ReadToType};
-use std::io::Read;
+use crate::support::data_reader::{DataReader, ReadToType};
 
 pub const JCLASS_MAGIC: u32 = 0xCAFEBABE;
 
-pub struct ClassParser {
-    reader: Reader,
+pub struct ClassParser<T: Read> {
+    reader: DataReader<T>,
     jclass_info: JClassInfo,
 }
 
@@ -91,10 +91,10 @@ macro_rules! check_latest_and_get_mul {
     };
 }
 
-impl ClassParser {
-    pub fn new<T: Read + 'static>(read: T) -> ClassParser {
+impl<T: Read> ClassParser<T> {
+    pub fn new(read: DataReader<T>) -> ClassParser<T> {
         ClassParser {
-            reader: Box::new(read),
+            reader: read,
             jclass_info: JClassInfo::default(),
         }
     }

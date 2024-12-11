@@ -1,6 +1,6 @@
 use crate::attribute_info::{AttributeInfo, SimpleAttribute};
-use crate::common::Reader;
-use crate::util::reader_utils::ReadToType;
+use crate::support::data_reader::{DataReader, ReadToType};
+use std::io::Read;
 
 #[derive(Clone, Debug)]
 pub struct FieldInfo {
@@ -11,7 +11,7 @@ pub struct FieldInfo {
 }
 
 impl FieldInfo {
-    pub fn new_from_reader(reader: &mut Reader) -> crate::common::Result<FieldInfo> {
+    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>) -> crate::error::Result<FieldInfo> {
         let access_flags: u16 = reader.read_to("字段访问标识")?;
         let name: u16 = reader.read_to("字段名")?;
         let descriptor: u16 = reader.read_to("字段描述")?;

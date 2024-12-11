@@ -1,6 +1,7 @@
-use crate::common::Reader;
 use crate::constant_pool::ConstantPool;
-use crate::util::reader_utils::{read_bytes, ReadToType};
+use crate::support::data_reader::DataReader;
+use crate::support::data_reader::ReadToType;
+use std::io::Read;
 
 #[derive(Clone, Debug)]
 pub enum AttributeInfo {
@@ -36,7 +37,7 @@ pub struct SimpleAttribute {
 }
 
 impl AttributeInfo {
-    pub fn new_from_reader(reader: &mut Reader, pool: &ConstantPool) -> crate::common::Result<AttributeInfo> {
+    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>, pool: &ConstantPool) -> crate::error::Result<AttributeInfo> {
         let name_index: u16 = reader.read_to("属性")?;
         // todo
         Ok(AttributeInfo::SimpleAttribute(SimpleAttribute::new_from_reader(reader, name_index)?))
@@ -44,10 +45,10 @@ impl AttributeInfo {
 }
 
 impl SimpleAttribute {
-    pub fn new_from_reader(reader: &mut Reader, name: u16) -> crate::common::Result<SimpleAttribute> {
+    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>, name: u16) -> crate::error::Result<SimpleAttribute> {
         let len: u32 = reader.read_to("属性数据长度")?;
         let mut data = vec![0; len as usize];
-        read_bytes(reader, "属性数据", &mut data)?;
+        reader.read_bytes("属性数据", &mut data)?;
         Ok(SimpleAttribute {
             name,
             data

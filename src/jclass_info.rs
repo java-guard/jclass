@@ -1,5 +1,5 @@
 use crate::attribute_info::AttributeInfo;
-use crate::common::MessageError;
+use crate::error::MessageError;
 use crate::constant_pool::ConstantPool;
 use crate::field_info::FieldInfo;
 use crate::method_info::MethodInfo;
@@ -50,7 +50,7 @@ impl<T: Clone> LazyValue<T> {
             _ => None
         }
     }
-    pub fn to_option_with_err(&self) -> crate::common::Result<Option<T>> {
+    pub fn to_option_with_err(&self) -> crate::error::Result<Option<T>> {
         match self {
             LazyValue::Some(v) => Ok(Some(v.clone())),
             LazyValue::Err(e) => Err(e.clone()),
@@ -58,7 +58,7 @@ impl<T: Clone> LazyValue<T> {
         }
     }
 
-    pub fn to_result(&self, name: &str) -> crate::common::Result<T> {
+    pub fn to_result(&self, name: &str) -> crate::error::Result<T> {
         match self {
             LazyValue::Err(e) => Err(e.clone()),
             LazyValue::Some(v) => Ok(v.clone()),

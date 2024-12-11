@@ -1,7 +1,4 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::io::Read;
-
-pub type Reader = Box<dyn Read>;
 
 #[derive(Debug, Clone)]
 pub struct MessageError {

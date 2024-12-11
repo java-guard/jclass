@@ -1,6 +1,6 @@
 use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref, JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String, JVM_CONSTANT_Utf8};
-use crate::common::{MessageError, Reader, Result, ToResult};
-use crate::util::reader_utils::{read_bytes_with_pre_size, ReadToType};
+use crate::error::{MessageError, Result, ToResult};
+use crate::support::data_reader::{DataReader, ReadToType};
 use std::io::Read;
 
 #[derive(Clone, Debug)]
@@ -59,7 +59,7 @@ impl RefInfo {
             name_type_index
         }
     }
-    pub fn new_with_reader(reader: &mut Reader) -> Result<RefInfo> {
+    pub fn new_with_reader<T: Read>(reader: &mut DataReader<T>) -> Result<RefInfo> {
         let class_index: u16 = reader.read_to("ref: class index 值读取失败")?;
         let name_type_index: u16 = reader.read_to("ref: name type index 值读取失败")?;
         Ok(RefInfo::new(class_index, name_type_index))
@@ -67,7 +67,7 @@ impl RefInfo {
 }
 
 impl ConstantValue {
-    pub fn new_with_reader(reader: &mut Reader) -> Result<ConstantValue> {
+    pub fn new_with_reader<T: Read>(reader: &mut DataReader<T>) -> Result<ConstantValue> {
         let mut single_byte = [0;1];
         let len = reader.read(&mut single_byte).with_message("常量类型读取出错")?;
         if len != 1 {
@@ -109,7 +109,7 @@ impl ConstantValue {
             JVM_CONSTANT_Utf8 => {
                 // todo 记得删
                 // let now = Instant::now();
-                let str_bytes = read_bytes_with_pre_size(reader, "UTF8字符串常量")?;
+                let str_bytes = reader.read_bytes_with_pre_size("UTF8字符串常量")?;
                 // println!(">>>> str b : {:?}", now.elapsed());
                 // let now = Instant::now();
                 let string = String::from_utf8(str_bytes).with_message("UTF8常量读取出错")?;
@@ -186,7 +186,7 @@ impl ConstantPool {
         });
         pool
     }
-    pub fn new_with_reader(reader: &mut Reader) -> Result<ConstantPool> {
+    pub fn new_with_reader<T: Read>(reader: &mut DataReader<T>) -> Result<ConstantPool> {
         // let now = Instant::now();
         let name = "常量池";
         let pool_count: u16 = reader.read_to(name)?;

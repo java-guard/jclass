@@ -6,13 +6,14 @@ use std::time::Instant;
 mod classfile_constants;
 mod class_parser;
 mod constant_pool;
-mod common;
+mod error;
 mod jclass_info;
 mod util;
 mod field_info;
 mod attribute_info;
 mod constants;
 mod method_info;
+mod support;
 
 #[cfg(test)]
 mod tests {
@@ -26,23 +27,24 @@ mod tests {
         let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
         let content = File::open(file_path).unwrap();
         let now = Instant::now();
-        let mut  info = ClassParser::new(content);
+        let mut  info = ClassParser::new(content.into());
         let _result = info.load_all().unwrap();
         println!(">> {:?}", now.elapsed().as_nanos());
         // println!("{:#?}", &info.get_jclass_info());
 
-        let content = read(file_path).unwrap();
+        let mut content = read(file_path).unwrap();
         let mut t = 0;
         for i in 0..10000 {
-            let content_ref = content.clone();
-            let cursor = Cursor::new(content_ref);
+            // let content_ref = content.clone();
+            // let cursor = Cursor::new(content_ref);
+            let cursor = Cursor::new(&content);
             let now = Instant::now();
-            let mut info = ClassParser::new(cursor);
+            let mut info = ClassParser::new(cursor.into());
             let _result = info.load_all();
             let duration = now.elapsed();
             t += duration.as_nanos();
         }
-        println!(">> {:?}", t)
+        println!(">> {:?}", t);
     }
 
     #[test]
@@ -50,7 +52,7 @@ mod tests {
         // let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
         let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
         let content = File::open(file_path).unwrap();
-        let mut  info = ClassParser::new(BufReader::new(content));
+        let mut  info = ClassParser::new(BufReader::new(content).into());
 
         let mut total = 0;
         let now = Instant::now();
