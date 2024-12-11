@@ -73,7 +73,7 @@ impl ConstantValue {
         if len != 1 {
             return Err(MessageError::new("常量类型无法读取"));
         }
-        Ok(match single_byte[0] as i32 {
+        Ok(match single_byte[0].into() {
             JVM_CONSTANT_Class => {
                 ConstantValue::ConstantClass(reader.read_to("Class常量")?)
             }
