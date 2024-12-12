@@ -1,4 +1,4 @@
-
+#![allow(unused_variables)]
 pub const ANNOTATION_DEFAULT_TAG: &str = "AnnotationDefault";
 pub const RUNTIME_VISIBLE_ANNOTATIONS_VISIBLE_TAG: &str = "RuntimeVisibleAnnotations";
 pub const RUNTIME_INVISIBLE_ANNOTATIONS_INVISIBLE_TAG: &str = "RuntimeInvisibleAnnotations";

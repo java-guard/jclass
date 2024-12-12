@@ -37,7 +37,7 @@ pub struct SimpleAttribute {
 }
 
 impl AttributeInfo {
-    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>, pool: &ConstantPool) -> crate::error::Result<AttributeInfo> {
+    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>, _pool: &ConstantPool) -> crate::error::Result<AttributeInfo> {
         let name_index: u16 = reader.read_to("属性")?;
         // todo
         Ok(AttributeInfo::SimpleAttribute(SimpleAttribute::new_from_reader(reader, name_index)?))

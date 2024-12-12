@@ -1,7 +1,4 @@
-use crate::class_parser::ClassParser;
-use std::fs::File;
-use std::io::BufReader;
-use std::time::Instant;
+#![allow(unused_attributes, unused, non_upper_case_globals)]
 
 mod classfile_constants;
 mod class_parser;
@@ -17,8 +14,8 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::fs::read;
+    use crate::class_parser::ClassParser;
+    use std::fs::{read, File};
     use std::io::{BufReader, Cursor};
     use std::time::Instant;
 
@@ -32,9 +29,9 @@ mod tests {
         println!(">> {:?}", now.elapsed().as_nanos());
         // println!("{:#?}", &info.get_jclass_info());
 
-        let mut content = read(file_path).unwrap();
+        let content = read(file_path).unwrap();
         let mut t = 0;
-        for i in 0..10000 {
+        for _ in 0..10000 {
             // let content_ref = content.clone();
             // let cursor = Cursor::new(content_ref);
             let cursor = Cursor::new(&content);
