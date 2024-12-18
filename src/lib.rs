@@ -10,6 +10,7 @@ mod field_info;
 mod attribute_info;
 mod constants;
 mod method_info;
+mod lazy_value;
 mod support;
 
 #[cfg(test)]
@@ -27,7 +28,7 @@ mod tests {
         let mut  info = ClassParser::new(content.into());
         let _result = info.load_all().unwrap();
         println!(">> {:?}", now.elapsed().as_nanos());
-        // println!("{:#?}", &info.get_jclass_info());
+        println!("{:?}", &info.get_jclass_info());
 
         let content = read(file_path).unwrap();
         let mut t = 0;

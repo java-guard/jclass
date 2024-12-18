@@ -1,11 +1,12 @@
 use crate::constant_pool::ConstantPool;
+use crate::lazy_value::LazyValue;
 use crate::support::data_reader::DataReader;
 use crate::support::data_reader::ReadToType;
 use std::io::Read;
 
 #[derive(Clone, Debug)]
 pub enum AttributeInfo {
-    AnnotationDefaultAttribute,
+    AnnotationDefaultAttribute(AnnotationDefaultAttribute),
     BootstrapMethodsAttribute,
     CodeAttribute,
     ConstantAttribute,
@@ -27,31 +28,43 @@ pub enum AttributeInfo {
     SyntheticAttribute,
     StackMap,
     StackMapTable,
-    SimpleAttribute(SimpleAttribute),
+    OriginAttribute,
 }
 
 #[derive(Clone, Debug)]
-pub struct SimpleAttribute {
+pub struct OriginAttribute {
     name: u16,
-    data: Vec<u8>
+    data: Vec<u8>,
+    info: LazyValue<AttributeInfo>,
 }
 
-impl AttributeInfo {
-    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>, _pool: &ConstantPool) -> crate::error::Result<AttributeInfo> {
+// trait ParsedAttribute {
+//     fn parse(name: u16, data: &[u8], pool: &ConstantPool) -> Self;
+//     fn name(&self) -> &str;
+//     fn data(&self) -> Vec<u8>;
+// }
+
+// pub struct DefaultAttribute {
+//     name: String,
+//     data: Vec<u8>
+// }
+
+#[derive(Clone, Debug)]
+pub struct AnnotationDefaultAttribute {
+    name: String,
+
+}
+
+impl OriginAttribute {
+    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>) -> crate::error::Result<OriginAttribute> {
         let name_index: u16 = reader.read_to("属性")?;
-        // todo
-        Ok(AttributeInfo::SimpleAttribute(SimpleAttribute::new_from_reader(reader, name_index)?))
-    }
-}
-
-impl SimpleAttribute {
-    pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>, name: u16) -> crate::error::Result<SimpleAttribute> {
         let len: u32 = reader.read_to("属性数据长度")?;
         let mut data = vec![0; len as usize];
         reader.read_bytes("属性数据", &mut data)?;
-        Ok(SimpleAttribute {
-            name,
-            data
+        Ok(OriginAttribute {
+            name: name_index,
+            data,
+            info: LazyValue::UnLoad
         })
     }
 }

@@ -1,9 +1,10 @@
 use std::io::Read;
-use crate::attribute_info::AttributeInfo;
+use crate::attribute_info::OriginAttribute;
 use crate::error::{MessageError, Result};
 use crate::constant_pool::ConstantPool;
 use crate::field_info::FieldInfo;
-use crate::jclass_info::{JClassInfo, LazyValue};
+use crate::lazy_value::LazyValue;
+use crate::jclass_info::JClassInfo;
 use crate::method_info::MethodInfo;
 use crate::support::data_reader::{DataReader, ReadToType};
 
@@ -156,11 +157,11 @@ impl<T: Read> ClassParser<T> {
             MethodInfo::new_from_reader(&mut self.reader))
     }
 
-    pub fn attributes(&mut self) -> Result<Vec<AttributeInfo>> {
+    pub fn attributes(&mut self) -> Result<Vec<OriginAttribute>> {
         check_latest_and_get_mul!(self, attributes, methods, "属性",
             match &self.jclass_info.constant_pool {
                 LazyValue::Some(pool) => {
-                    AttributeInfo::new_from_reader(&mut self.reader, pool)
+                    OriginAttribute::new_from_reader(&mut self.reader)
                 }
                 _ => {
                     Err(MessageError::new("常量池数据异常"))
