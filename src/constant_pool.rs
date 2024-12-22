@@ -1,6 +1,9 @@
 use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref, JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String, JVM_CONSTANT_Utf8};
 use crate::error::{MessageError, Result, ToResult};
 use crate::support::data_reader::{DataReader, ReadToType};
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::io::Read;
 
 #[derive(Clone, Debug)]
@@ -9,35 +12,36 @@ pub struct RefInfo {
     name_type_index: u16,
 }
 
+#[repr(u8)]
 #[derive(Clone, Debug)]
 pub enum ConstantValue {
-    Null,
+    Null = 0,
     // name index
-    ConstantClass(u16),
-    ConstantFieldref(RefInfo),
-    ConstantMethodref(RefInfo),
-    ConstantInterfaceMethodref(RefInfo),
+    ConstantClass(u16) = JVM_CONSTANT_Class as u8,
+    ConstantFieldref(u16, u16) = JVM_CONSTANT_Fieldref as u8,
+    ConstantMethodref(u16, u16) = JVM_CONSTANT_Methodref as u8,
+    ConstantInterfaceMethodref(u16, u16) = JVM_CONSTANT_InterfaceMethodref as u8,
     // index
-    ConstantString(u16),
-    ConstantInteger(i32),
-    ConstantFloat(f32),
-    ConstantLong(i64),
-    ConstantDouble(f64),
+    ConstantString(u16) = JVM_CONSTANT_String as u8,
+    ConstantInteger(i32) = JVM_CONSTANT_Integer as u8,
+    ConstantFloat(f32) = JVM_CONSTANT_Float as u8,
+    ConstantLong(i64) = JVM_CONSTANT_Long as u8,
+    ConstantDouble(f64) = JVM_CONSTANT_Double as u8,
     // name index, type index
-    ConstantNameAndType(u16, u16),
-    ConstantUtf8(String),
+    ConstantNameAndType(u16, u16) = JVM_CONSTANT_NameAndType as u8,
+    ConstantUtf8(String) = JVM_CONSTANT_Utf8 as u8,
     // ref kind, ref index
-    ConstantMethodHandle(u8, u16),
+    ConstantMethodHandle(u8, u16) = JVM_CONSTANT_MethodHandle as u8,
     // descriptor
-    ConstantMethodType(u16),
+    ConstantMethodType(u16) = JVM_CONSTANT_MethodType as u8,
     // bootstrap method, ref index
-    ConstantDynamic(u16, u16),
+    ConstantDynamic(u16, u16) = JVM_CONSTANT_Dynamic as u8,
     // ConstantDynamicCallSite,
-    ConstantInvokeDynamic(u16, u16),
+    ConstantInvokeDynamic(u16, u16) = JVM_CONSTANT_InvokeDynamic as u8,
     // name index
-    ConstantModule(u16),
+    ConstantModule(u16) = JVM_CONSTANT_Module as u8,
     // name index
-    ConstantPackage(u16),
+    ConstantPackage(u16) = JVM_CONSTANT_Package as u8,
 }
 
 #[derive(Debug, Clone)]
@@ -49,7 +53,8 @@ pub struct ConstantItem {
 #[derive(Debug, Clone)]
 pub struct ConstantPool {
     count: u16,
-    values: Vec<ConstantItem>
+    values: Vec<ConstantItem>,
+    cache: Option<HashMap<ConstantValue, u16>>
 }
 
 impl RefInfo {
@@ -78,13 +83,16 @@ impl ConstantValue {
                 ConstantValue::ConstantClass(reader.read_to("Class常量")?)
             }
             JVM_CONSTANT_Fieldref => {
-                ConstantValue::ConstantFieldref(RefInfo::new_with_reader(reader)?)
+                ConstantValue::ConstantFieldref(reader.read_to("ConstantField ref: class index 值读取失败")?,
+                                                reader.read_to("ConstantField ref: name index 值读取失败")?)
             }
             JVM_CONSTANT_Methodref => {
-                ConstantValue::ConstantMethodref(RefInfo::new_with_reader(reader)?)
+                ConstantValue::ConstantMethodref(reader.read_to("ConstantField ref: class index 值读取失败")?,
+                                                reader.read_to("ConstantField ref: name index 值读取失败")?)
             }
             JVM_CONSTANT_InterfaceMethodref => {
-                ConstantValue::ConstantInterfaceMethodref(RefInfo::new_with_reader(reader)?)
+                ConstantValue::ConstantInterfaceMethodref(reader.read_to("ConstantField ref: class index 值读取失败")?,
+                                                reader.read_to("ConstantField ref: name index 值读取失败")?)
             }
             JVM_CONSTANT_String => {
                 ConstantValue::ConstantString(reader.read_to("String常量")?)
@@ -148,37 +156,43 @@ impl ConstantValue {
         })
     }
     pub fn byte(&self) -> u8 {
-        let result = match self {
-            ConstantValue::Null => 0,
-            ConstantValue::ConstantClass(_) => JVM_CONSTANT_Class,
-            ConstantValue::ConstantFieldref(_) => JVM_CONSTANT_Fieldref,
-            ConstantValue::ConstantMethodref(_) => JVM_CONSTANT_Methodref,
-            ConstantValue::ConstantInterfaceMethodref(_) => JVM_CONSTANT_InterfaceMethodref,
-            ConstantValue::ConstantString(_) => JVM_CONSTANT_String,
-            ConstantValue::ConstantInteger(_) => JVM_CONSTANT_Integer,
-            ConstantValue::ConstantFloat(_) => JVM_CONSTANT_Float,
-            ConstantValue::ConstantLong(_) => JVM_CONSTANT_Long,
-            ConstantValue::ConstantDouble(_) => JVM_CONSTANT_Double,
-            ConstantValue::ConstantNameAndType(_, _) => JVM_CONSTANT_NameAndType,
-            ConstantValue::ConstantUtf8(_) => JVM_CONSTANT_Utf8,
-            ConstantValue::ConstantMethodHandle(_, _) => JVM_CONSTANT_MethodHandle,
-            ConstantValue::ConstantMethodType(_) => JVM_CONSTANT_MethodType,
-            ConstantValue::ConstantDynamic(_, _) => JVM_CONSTANT_Dynamic,
-            // ConstantValue::ConstantDynamicCallSite => JVM_CONSTANT_InvokeDynamic,
-            ConstantValue::ConstantInvokeDynamic(_, _) => JVM_CONSTANT_InvokeDynamic,
-            ConstantValue::ConstantModule(_) => JVM_CONSTANT_Module,
-            ConstantValue::ConstantPackage(_) => JVM_CONSTANT_Package,
-            // _ => panic!("未知常量值类型")
-        };
-        result as u8
+        unsafe {
+            *(self as *const ConstantValue as *const u8)
+        }
     }
+    // pub fn byte(&self) -> u8 {
+    //     let result = match self {
+    //         ConstantValue::Null => 0,
+    //         ConstantValue::ConstantClass(_) => JVM_CONSTANT_Class,
+    //         ConstantValue::ConstantFieldref(_, _) => JVM_CONSTANT_Fieldref,
+    //         ConstantValue::ConstantMethodref(_, _) => JVM_CONSTANT_Methodref,
+    //         ConstantValue::ConstantInterfaceMethodref(_, _) => JVM_CONSTANT_InterfaceMethodref,
+    //         ConstantValue::ConstantString(_) => JVM_CONSTANT_String,
+    //         ConstantValue::ConstantInteger(_) => JVM_CONSTANT_Integer,
+    //         ConstantValue::ConstantFloat(_) => JVM_CONSTANT_Float,
+    //         ConstantValue::ConstantLong(_) => JVM_CONSTANT_Long,
+    //         ConstantValue::ConstantDouble(_) => JVM_CONSTANT_Double,
+    //         ConstantValue::ConstantNameAndType(_, _) => JVM_CONSTANT_NameAndType,
+    //         ConstantValue::ConstantUtf8(_) => JVM_CONSTANT_Utf8,
+    //         ConstantValue::ConstantMethodHandle(_, _) => JVM_CONSTANT_MethodHandle,
+    //         ConstantValue::ConstantMethodType(_) => JVM_CONSTANT_MethodType,
+    //         ConstantValue::ConstantDynamic(_, _) => JVM_CONSTANT_Dynamic,
+    //         // ConstantValue::ConstantDynamicCallSite => JVM_CONSTANT_InvokeDynamic,
+    //         ConstantValue::ConstantInvokeDynamic(_, _) => JVM_CONSTANT_InvokeDynamic,
+    //         ConstantValue::ConstantModule(_) => JVM_CONSTANT_Module,
+    //         ConstantValue::ConstantPackage(_) => JVM_CONSTANT_Package,
+    //         // _ => panic!("未知常量值类型")
+    //     };
+    //     result as u8
+    // }
 }
 
 impl ConstantPool {
     pub fn new(size: u16) -> ConstantPool {
         let mut pool = ConstantPool {
             count: 0,
-            values: Vec::with_capacity(size as usize)
+            values: Vec::with_capacity(size as usize),
+            cache: None
         };
         pool.values.push(ConstantItem {
             index: 0,
@@ -195,10 +209,21 @@ impl ConstantPool {
             // let now = Instant::now();
             let value = ConstantValue::new_with_reader(reader)?;
             // println!(">>>> pool item: {:?}: {:?}", now.elapsed(), &value);
-            pool.add_constant(value);
+            pool.add_constant_force(&value);
         }
         // println!(">>> pool: {:?}", now.elapsed());
         Ok(pool)
+    }
+
+    fn cache(&mut self) -> &mut HashMap<ConstantValue, u16> {
+        match self.cache {
+            Some(ref mut cache) => cache,
+            None => {
+                let mut cache = HashMap::with_capacity(self.count as usize);
+                self.cache = Some(cache);
+                self.cache()
+            }
+        }
     }
 
     // pub fn add_constant_item(&mut self, item: ConstantItem) -> u16 {
@@ -207,12 +232,118 @@ impl ConstantPool {
     //     self.count
     // }
 
-    pub fn add_constant(&mut self, value: ConstantValue) -> u16 {
+    pub fn add_constant(&mut self, value: &ConstantValue) -> u16 {
+        if let Some(index) = self.cache().get(value) {
+            return *index;
+        }
+        self.add_constant_force(value)
+    }
+
+    fn add_constant_force(&mut self, value: &ConstantValue) -> u16 {
         self.count += 1;
         self.values.push(ConstantItem {
             index: self.count,
-            value
+            value: value.clone()
         });
         self.count
+    }
+}
+
+impl Hash for ConstantValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.byte().hash(state);
+        match self {
+            ConstantValue::Null => {}
+            ConstantValue::ConstantClass(v)|
+            ConstantValue::ConstantString(v)|
+            ConstantValue::ConstantMethodType(v)|
+            ConstantValue::ConstantModule(v)|
+            ConstantValue::ConstantPackage(v)
+                => v.hash(state),
+            ConstantValue::ConstantInteger(v) => v.hash(state),
+            ConstantValue::ConstantFloat(v) => v.to_bits().hash(state),
+            ConstantValue::ConstantLong(v) => v.hash(state),
+            ConstantValue::ConstantDouble(v) => v.to_bits().hash(state),
+            ConstantValue::ConstantUtf8(v) => v.hash(state),
+            ConstantValue::ConstantFieldref(a, b)|
+            ConstantValue::ConstantMethodref(a, b)|
+            ConstantValue::ConstantInterfaceMethodref(a, b)|
+            ConstantValue::ConstantNameAndType(a, b)|
+            ConstantValue::ConstantDynamic(a, b)|
+            ConstantValue::ConstantInvokeDynamic(a, b)
+                => {
+                a.hash(state);
+                b.hash(state);
+            }
+            ConstantValue::ConstantMethodHandle(a, b) => {
+                a.hash(state);
+                b.hash(state);
+            }
+        }
+    }
+}
+
+impl Eq for ConstantValue {}
+
+impl PartialEq<Self> for ConstantValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl PartialOrd<Self> for ConstantValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ConstantValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let ordering = self.byte().cmp(&other.byte());
+        if ordering != Ordering::Equal {
+            return ordering;
+        }
+        match (self, other) {
+            (ConstantValue::ConstantClass(v1), ConstantValue::ConstantClass(v2))|
+            (ConstantValue::ConstantString(v1), ConstantValue::ConstantString(v2))|
+            (ConstantValue::ConstantMethodType(v1), ConstantValue::ConstantMethodType(v2))|
+            (ConstantValue::ConstantModule(v1), ConstantValue::ConstantModule(v2))|
+            (ConstantValue::ConstantPackage(v1), ConstantValue::ConstantPackage(v2))
+                => v1.cmp(v2),
+            (ConstantValue::ConstantInteger(v1), ConstantValue::ConstantInteger(v2))
+                => v1.cmp(v2),
+            (ConstantValue::ConstantFloat(v1), ConstantValue::ConstantFloat(v2))
+                => v1.total_cmp(v2),
+            (ConstantValue::ConstantLong(v1), ConstantValue::ConstantLong(v2))
+                => v1.cmp(v2),
+            (ConstantValue::ConstantDouble(v1), ConstantValue::ConstantDouble(v2))
+                => v1.total_cmp(v2),
+            (ConstantValue::ConstantUtf8(v1), ConstantValue::ConstantUtf8(v2))
+                => v1.cmp(v2),
+            (ConstantValue::ConstantFieldref(a1, b1), ConstantValue::ConstantFieldref(a2, b2))|
+            (ConstantValue::ConstantMethodref(a1, b1), ConstantValue::ConstantMethodref(a2, b2))|
+            (ConstantValue::ConstantInterfaceMethodref(a1, b1), ConstantValue::ConstantInterfaceMethodref(a2, b2))|
+            (ConstantValue::ConstantNameAndType(a1, b1), ConstantValue::ConstantNameAndType(a2, b2))|
+            (ConstantValue::ConstantDynamic(a1, b1), ConstantValue::ConstantDynamic(a2, b2))|
+            (ConstantValue::ConstantInvokeDynamic(a1, b1), ConstantValue::ConstantInvokeDynamic(a2, b2))
+                => {
+                let ordering = a1.cmp(a2);
+                if ordering != Ordering::Equal {
+                    ordering
+                } else {
+                    b1.cmp(b2)
+                }
+            }
+            (ConstantValue::ConstantMethodHandle(a1, b1), ConstantValue::ConstantMethodHandle(a2, b2))
+                => {
+                let ordering = a1.cmp(a2);
+                if ordering != Ordering::Equal {
+                    ordering
+                } else {
+                    b1.cmp(b2)
+                }
+            }
+            _ => Ordering::Equal,
+        }
     }
 }
