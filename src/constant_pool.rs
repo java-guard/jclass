@@ -220,6 +220,9 @@ impl ConstantPool {
             Some(ref mut cache) => cache,
             None => {
                 let mut cache = HashMap::with_capacity(self.count as usize);
+                for item in &self.values {
+                    cache.insert(item.value.clone(), item.index);
+                }
                 self.cache = Some(cache);
                 self.cache()
             }
@@ -245,6 +248,9 @@ impl ConstantPool {
             index: self.count,
             value: value.clone()
         });
+        if let Some(cache) = &mut self.cache {
+            cache.insert(value.clone(), self.count);
+        }
         self.count
     }
 }
