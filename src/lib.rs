@@ -15,20 +15,22 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use crate::class_parser::ClassParser;
     use std::fs::{read, File};
     use std::io::{BufReader, Cursor};
     use std::time::Instant;
+    use crate::jclass_info::JClassInfo;
 
     #[test]
     fn test_parser() {
         let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
+        let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
         let content = File::open(file_path).unwrap();
         let now = Instant::now();
-        let mut  info = ClassParser::new(content.into());
-        let _result = info.load_all().unwrap();
+        let mut  info = JClassInfo::from_reader(&mut content.into());
         println!(">> {:?}", now.elapsed().as_nanos());
-        println!("{:?}", &info.get_jclass_info());
+        if let Ok(info) = info {
+            println!("{:?}", &info);
+        }
 
         let content = read(file_path).unwrap();
         let mut t = 0;
@@ -37,8 +39,7 @@ mod tests {
             // let cursor = Cursor::new(content_ref);
             let cursor = Cursor::new(&content);
             let now = Instant::now();
-            let mut info = ClassParser::new(cursor.into());
-            let _result = info.load_all();
+            let mut _info = JClassInfo::from_reader(&mut cursor.into());
             let duration = now.elapsed();
             t += duration.as_nanos();
         }
@@ -50,85 +51,13 @@ mod tests {
         // let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
         let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
         let content = File::open(file_path).unwrap();
-        let mut  info = ClassParser::new(BufReader::new(content).into());
 
         let mut total = 0;
         let now = Instant::now();
-        info.magic().unwrap();
+        let mut  info = JClassInfo::from_reader(&mut BufReader::new(content).into());
         let duration = now.elapsed();
         total += duration.as_nanos();
-        println!(">> magic: {:?}", duration);
-
-        let now = Instant::now();
-        info.minor_version().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> minor_version: {:?}", duration);
-
-        let now = Instant::now();
-        info.major_version().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> major_version: {:?}", duration);
-
-        let now = Instant::now();
-        info.constant_pool().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> constant_pool: {:?}", duration);
-
-        let now = Instant::now();
-        info.access_flags().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> access_flags: {:?}", duration);
-
-        let now = Instant::now();
-        info.class_index().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> class_index: {:?}", duration);
-
-        let now = Instant::now();
-        info.superclass_index().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> superclass_index: {:?}", duration);
-
-        let now = Instant::now();
-        info.interfaces().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> interfaces: {:?}", duration);
-
-        let now = Instant::now();
-        info.fields().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> fields: {:?}", duration);
-
-        let now = Instant::now();
-        info.methods().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> methods: {:?}", duration);
-
-        let now = Instant::now();
-        info.attributes().unwrap();
-        let duration = now.elapsed();
-
-        total += duration.as_nanos();
-        println!(">> attributes: {:?}", duration);
-        println!(">> total: {:?} ns", total);
+        println!(">> total: {:?}", duration);
     }
 }
 

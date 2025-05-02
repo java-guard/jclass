@@ -50,7 +50,7 @@ pub struct ConstantItem {
     value: ConstantValue
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ConstantPool {
     count: u16,
     values: Vec<ConstantItem>,
@@ -73,12 +73,13 @@ impl RefInfo {
 
 impl ConstantValue {
     pub fn new_with_reader<T: Read>(reader: &mut DataReader<T>) -> Result<ConstantValue> {
-        let mut single_byte = [0;1];
-        let len = reader.read(&mut single_byte).with_message("常量类型读取出错")?;
-        if len != 1 {
-            return Err(MessageError::new("常量类型无法读取"));
-        }
-        Ok(match single_byte[0].into() {
+        // let mut single_byte = [0;1];
+        let mut const_type:u8 = reader.read_to("常量类型")?;
+        // let len = reader.read(&mut single_byte).with_message("常量类型读取出错")?;
+        // if len != 1 {
+        //     return Err(MessageError::new("常量类型无法读取"));
+        // }
+        Ok(match const_type.into() {
             JVM_CONSTANT_Class => {
                 ConstantValue::ConstantClass(reader.read_to("Class常量")?)
             }
@@ -151,7 +152,7 @@ impl ConstantValue {
                 ConstantValue::ConstantPackage(index)
             }
             _ => {
-                return Err(MessageError::new(&format!("无效的常量类型[{}]", single_byte[0])));
+                return Err(MessageError::new(&format!("无效的常量类型[{}]", const_type)));
             }
         })
     }
@@ -209,7 +210,7 @@ impl ConstantPool {
             // let now = Instant::now();
             let value = ConstantValue::new_with_reader(reader)?;
             // println!(">>>> pool item: {:?}: {:?}", now.elapsed(), &value);
-            pool.add_constant_force(&value);
+            pool.add_constant_force(value);
         }
         // println!(">>> pool: {:?}", now.elapsed());
         Ok(pool)
@@ -235,22 +236,23 @@ impl ConstantPool {
     //     self.count
     // }
 
-    pub fn add_constant(&mut self, value: &ConstantValue) -> u16 {
-        if let Some(index) = self.cache().get(value) {
+    pub fn add_constant(&mut self, value: ConstantValue) -> u16 {
+        if let Some(index) = self.cache().get(&value) {
             return *index;
         }
         self.add_constant_force(value)
     }
 
-    fn add_constant_force(&mut self, value: &ConstantValue) -> u16 {
+    fn add_constant_force(&mut self, value: ConstantValue) -> u16 {
         self.count += 1;
-        self.values.push(ConstantItem {
+        let item = ConstantItem {
             index: self.count,
-            value: value.clone()
-        });
+            value
+        };
         if let Some(cache) = &mut self.cache {
-            cache.insert(value.clone(), self.count);
+            cache.insert(item.value.clone(), self.count);
         }
+        self.values.push(item);
         self.count
     }
 }
