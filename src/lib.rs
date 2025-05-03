@@ -1,14 +1,12 @@
 #![allow(unused_attributes, unused, non_upper_case_globals)]
 
+mod common;
 mod classfile_constants;
-mod class_parser;
 mod constant_pool;
-mod error;
 mod jclass_info;
 mod util;
 mod field_info;
 mod attribute_info;
-mod constants;
 mod method_info;
 mod lazy_value;
 mod support;

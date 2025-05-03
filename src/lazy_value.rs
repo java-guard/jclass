@@ -1,5 +1,5 @@
-use crate::error::MessageError;
 use std::mem;
+use crate::common::error::{Result, MessageError};
 
 #[derive(Clone, Debug)]
 pub enum LazyValue<T: Clone> {
@@ -46,7 +46,7 @@ impl<T: Clone> LazyValue<T> {
             _ => None
         }
     }
-    pub fn to_option_with_err(&self) -> crate::error::Result<Option<T>> {
+    pub fn to_option_with_err(&self) -> Result<Option<T>> {
         match self {
             LazyValue::Some(v) => Ok(Some(v.clone())),
             LazyValue::Err(e) => Err(e.clone()),
@@ -54,7 +54,7 @@ impl<T: Clone> LazyValue<T> {
         }
     }
 
-    pub fn to_result(&self, name: &str) -> crate::error::Result<T> {
+    pub fn to_result(&self, name: &str) -> Result<T> {
         match self {
             LazyValue::Err(e) => Err(e.clone()),
             LazyValue::Some(v) => Ok(v.clone()),

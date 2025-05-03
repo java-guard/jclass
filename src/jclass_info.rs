@@ -1,7 +1,7 @@
 use std::io::Read;
 use crate::attribute_info::OriginAttribute;
+use crate::common::error::{Result, MessageError};
 use crate::constant_pool::ConstantPool;
-use crate::error::MessageError;
 use crate::field_info::FieldInfo;
 use crate::method_info::MethodInfo;
 use crate::support::data_reader::{DataReader, ReadToType};
@@ -24,7 +24,7 @@ pub struct JClassInfo {
 }
 
 impl JClassInfo {
-    pub fn from_reader<T: Read>(reader: &mut DataReader<T>) -> crate::error::Result<JClassInfo> {
+    pub fn from_reader<T: Read>(reader: &mut DataReader<T>) -> Result<JClassInfo> {
         let magic: u32 = reader.read_to("魔术头")?;
         if magic != JCLASS_MAGIC {
             return Err(MessageError::new("解析数据非class文件"));

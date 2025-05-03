@@ -1,4 +1,4 @@
-use crate::error::{MessageError, Result};
+use crate::common::error::{MessageError, Result};
 use std::io::Read;
 use std::ops::{Deref, DerefMut};
 use crate::with_message;
