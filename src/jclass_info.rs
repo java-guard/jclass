@@ -4,7 +4,6 @@ use crate::constant_pool::ConstantPool;
 use crate::error::MessageError;
 use crate::field_info::FieldInfo;
 use crate::method_info::MethodInfo;
-use crate::lazy_value::LazyValue;
 use crate::support::data_reader::{DataReader, ReadToType};
 
 pub const JCLASS_MAGIC: u32 = 0xCAFEBABE;

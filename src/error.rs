@@ -5,6 +5,16 @@ pub struct MessageError {
     msg: String
 }
 
+#[macro_export]
+macro_rules! with_message {
+    ($result:expr, $msg:expr) => {
+        match $result {
+            Ok(t) => Ok(t),
+            Err(e) => Err(MessageError::new(&format!("{}: {}", $msg, e))),
+        }
+    };
+}
+
 impl MessageError {
     pub fn new(msg: &str) -> MessageError {
         MessageError {
@@ -30,13 +40,17 @@ impl std::error::Error for MessageError {
 }
 
 pub type Result<T> = core::result::Result<T, MessageError>;
-
-pub trait ToResult<T> {
-    fn with_message(self, msg: &str) -> Result<T>;
-}
-
-impl<T, E: Display> ToResult<T> for core::result::Result<T, E> {
-    fn with_message(self, msg: &str) -> Result<T> {
-        self.map_err(|e| MessageError::new(&format!("{msg}: {e}")))
-    }
-}
+//
+// pub trait ToResult<T> {
+//     fn with_message(self, msg: &str) -> Result<T>;
+// }
+//
+// impl<T, E: Display> ToResult<T> for core::result::Result<T, E> {
+//     #[inline]
+//     fn with_message(self, msg: &str) -> Result<T> {
+//         match self {
+//             Ok(t) => Ok(t),
+//             Err(e) => Err(MessageError::new(&format!("{msg}: {e}"))),
+//         }
+//     }
+// }

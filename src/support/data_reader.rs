@@ -1,6 +1,7 @@
-use crate::error::{Result, ToResult};
+use crate::error::{MessageError, Result};
 use std::io::Read;
 use std::ops::{Deref, DerefMut};
+use crate::with_message;
 
 pub struct DataReader<T: Read> (T);
 
@@ -9,9 +10,12 @@ pub trait ReadToType<T:Sized> {
 }
 
 impl<T: Read> DataReader<T> {
+    #[inline]
     pub fn read_bytes(&mut self, name: &str, bytes: &mut [u8]) -> Result<()> {
-        self.read_exact(bytes).with_message( &format!("{name}读取出错"))
+        with_message!(self.read_exact(bytes), &format!("{name}读取出错"))
+        // self.read_exact(bytes).with_message( &format!("{name}读取出错"))
     }
+    #[inline]
     pub fn read_bytes_with_pre_size(&mut self, name: &str) -> Result<Vec<u8>> {
         let str_len: u16 = self.read_to(name)?;
         let mut buf = vec![0; str_len as usize];
@@ -49,6 +53,7 @@ impl<T: Read> ReadToType<u8> for DataReader<T> {
 }
 
 impl<T: Read> ReadToType<i8> for DataReader<T> {
+    #[inline]
     fn read_to(&mut self, name: &str) -> Result<i8> {
         let mut buf = [0;1];
         self.read_bytes(name, &mut buf)?;

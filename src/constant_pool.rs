@@ -1,10 +1,11 @@
 use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref, JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String, JVM_CONSTANT_Utf8};
-use crate::error::{MessageError, Result, ToResult};
+use crate::error::{MessageError, Result};
 use crate::support::data_reader::{DataReader, ReadToType};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::io::Read;
+use crate::with_message;
 
 #[derive(Clone, Debug)]
 pub struct RefInfo {
@@ -121,7 +122,7 @@ impl ConstantValue {
                 let str_bytes = reader.read_bytes_with_pre_size("UTF8字符串常量")?;
                 // println!(">>>> str b : {:?}", now.elapsed());
                 // let now = Instant::now();
-                let string = String::from_utf8(str_bytes).with_message("UTF8常量读取出错")?;
+                let string = with_message!(String::from_utf8(str_bytes), "UTF8常量读取出错")?;
                 // println!(">>>> str : {:?}", now.elapsed());
                 ConstantValue::ConstantUtf8(string)
             }
@@ -243,6 +244,7 @@ impl ConstantPool {
         self.add_constant_force(value)
     }
 
+    #[inline]
     fn add_constant_force(&mut self, value: ConstantValue) -> u16 {
         self.count += 1;
         let item = ConstantItem {
