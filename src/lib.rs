@@ -8,7 +8,6 @@ mod util;
 mod field_info;
 mod attribute_info;
 mod method_info;
-mod lazy_value;
 mod support;
 
 #[cfg(test)]

@@ -13,12 +13,15 @@ impl<T: Read> DataReader<T> {
     #[inline]
     pub fn read_bytes(&mut self, name: &str, bytes: &mut [u8]) -> Result<()> {
         with_message!(self.read_exact(bytes), &format!("{name}读取出错"))
-        // self.read_exact(bytes).with_message( &format!("{name}读取出错"))
     }
     #[inline]
     pub fn read_bytes_with_pre_size(&mut self, name: &str) -> Result<Vec<u8>> {
         let str_len: u16 = self.read_to(name)?;
-        let mut buf = vec![0; str_len as usize];
+        let str_len = str_len as usize;
+        let mut buf = Vec::with_capacity(str_len);
+        unsafe {
+            buf.set_len(str_len);
+        }
         self.read_bytes(name, &mut buf)?;
         Ok(buf)
     }
@@ -26,7 +29,7 @@ impl<T: Read> DataReader<T> {
 
 impl<T: Read> From<T> for DataReader<T> {
     fn from(value: T) -> Self {
-        DataReader(value)
+        DataReader (value)
     }
 }
 

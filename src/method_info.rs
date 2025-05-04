@@ -5,10 +5,10 @@ use std::io::Read;
 
 #[derive(Clone, Debug)]
 pub struct MethodInfo {
-    access_flags: u16,
-    name: u16,
-    descriptor: u16,
-    attributes: Vec<OriginAttribute>
+    pub access_flags: u16,
+    pub name: u16,
+    pub descriptor: u16,
+    pub attributes: Vec<OriginAttribute>
 }
 
 impl MethodInfo {
