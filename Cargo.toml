@@ -4,14 +4,8 @@ version = "0.1.0"
 edition = "2021"
 build = "build/build.rs"
 
-#[profile.dev]
-#warnings=false
-#[profile.dev]
-#warnings = false
 #[profile.release]
-#warnings = false
-[profile.release]
-debug = true
+#debug = true
 
 [dependencies]
 
