@@ -13,6 +13,7 @@ fn base_test() {
     #[allow(unused_variables)]
     let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
+    let file_path = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
     let content = File::open(file_path).unwrap();
     let now = Instant::now();
     let mut  info = JClassInfo::from_reader(&mut content.into());

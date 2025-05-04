@@ -1,10 +1,10 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use crate::attribute_info::OriginAttribute;
 use crate::common::error::{Result, MessageError};
 use crate::constant_pool::ConstantPool;
 use crate::field_info::FieldInfo;
 use crate::method_info::MethodInfo;
-use crate::support::data_reader::{DataReader, ReadToType};
+use crate::support::data_reader::{DataReader, DataWriter, ReadToType, WriteFromType};
 
 pub const JCLASS_MAGIC: u32 = 0xCAFEBABE;
 
@@ -75,5 +75,36 @@ impl JClassInfo {
             methods,
             attributes,
         })
+    }
+
+
+    pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        writer.write_from("魔术头", JCLASS_MAGIC)?;
+        writer.write_from("次版本", self.minor_version)?;
+        writer.write_from("主版本", self.major_version)?;
+        self.constant_pool.write_to(writer)?;
+        writer.write_from("访问标志", self.access_flags)?;
+        writer.write_from("该类索引", self.class_index)?;
+        writer.write_from("父类索引", self.superclass_index)?;
+        writer.write_from("接口数量", self.interfaces.len() as u16)?;
+        for interface in &self.interfaces {
+            writer.write_from("接口索引", *interface)?;
+        }
+
+        writer.write_from("字段数量", self.fields.len() as u16)?;
+        for field in &self.fields {
+            field.write_to(writer)?;
+        }
+
+        writer.write_from("方法数量", self.methods.len() as u16)?;
+        for method in &self.methods {
+            method.write_to(writer)?;
+        }
+
+        writer.write_from("属性数量", self.attributes.len() as u16)?;
+        for attribute in &self.attributes {
+            attribute.write_to(writer)?;
+        }
+        Ok(())
     }
 }

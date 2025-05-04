@@ -1,7 +1,7 @@
 use crate::common::error::Result;
-use crate::support::data_reader::DataReader;
+use crate::support::data_reader::{DataReader, DataWriter, WriteFromType};
 use crate::support::data_reader::ReadToType;
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Write};
 
 #[derive(Clone, Debug)]
 pub struct OriginAttribute {
@@ -35,7 +35,7 @@ pub struct ExceptionTableEntry {
 
 impl OriginAttribute {
     pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>) -> Result<OriginAttribute> {
-        let name_index: u16 = reader.read_to("属性")?;
+        let name_index: u16 = reader.read_to("属性名")?;
         let len: u32 = reader.read_to("属性数据长度")?;
         let len = len as usize;
         let mut data = Vec::with_capacity(len);
@@ -48,6 +48,11 @@ impl OriginAttribute {
             data,
             // info: LazyValue::UnLoad
         })
+    }
+
+    pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        writer.write_from("属性名", self.name)?;
+        writer.write_bytes_with_pre_size("属性数据", &self.data)
     }
 }
 

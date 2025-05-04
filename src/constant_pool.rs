@@ -1,11 +1,12 @@
 use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref, JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String, JVM_CONSTANT_Utf8};
 use crate::common::error::{MessageError, Result};
-use crate::support::data_reader::{DataReader, ReadToType};
+use crate::support::data_reader::{DataReader, DataWriter, ReadToType, WriteFromType};
 use crate::with_message;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::io::Read;
+use std::io::{Read, Write};
+use crate::jclass_info::JClassInfo;
 
 #[derive(Clone, Debug)]
 pub struct RefInfo {
@@ -74,27 +75,25 @@ impl RefInfo {
 
 impl ConstantValue {
     pub fn new_with_reader<T: Read>(reader: &mut DataReader<T>) -> Result<ConstantValue> {
-        // let mut single_byte = [0;1];
         let mut const_type:u8 = reader.read_to("常量类型")?;
-        // let len = reader.read(&mut single_byte).with_message("常量类型读取出错")?;
-        // if len != 1 {
-        //     return Err(MessageError::new("常量类型无法读取"));
-        // }
         Ok(match const_type.into() {
+            0 => {
+                ConstantValue::Null
+            }
             JVM_CONSTANT_Class => {
                 ConstantValue::ConstantClass(reader.read_to("Class常量")?)
             }
             JVM_CONSTANT_Fieldref => {
-                ConstantValue::ConstantFieldref(reader.read_to("ConstantField ref: class index 值读取失败")?,
-                                                reader.read_to("ConstantField ref: name index 值读取失败")?)
+                ConstantValue::ConstantFieldref(reader.read_to("ConstantField ref: class index 值")?,
+                                                reader.read_to("ConstantField ref: name index 值")?)
             }
             JVM_CONSTANT_Methodref => {
-                ConstantValue::ConstantMethodref(reader.read_to("ConstantField ref: class index 值读取失败")?,
-                                                reader.read_to("ConstantField ref: name index 值读取失败")?)
+                ConstantValue::ConstantMethodref(reader.read_to("ConstantField ref: class index 值")?,
+                                                reader.read_to("ConstantField ref: name index 值")?)
             }
             JVM_CONSTANT_InterfaceMethodref => {
-                ConstantValue::ConstantInterfaceMethodref(reader.read_to("ConstantField ref: class index 值读取失败")?,
-                                                reader.read_to("ConstantField ref: name index 值读取失败")?)
+                ConstantValue::ConstantInterfaceMethodref(reader.read_to("ConstantField ref: class index 值")?,
+                                                reader.read_to("ConstantField ref: name index 值")?)
             }
             JVM_CONSTANT_String => {
                 ConstantValue::ConstantString(reader.read_to("String常量")?)
@@ -152,6 +151,75 @@ impl ConstantValue {
             }
         })
     }
+
+    pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        let const_type = self.byte();
+        writer.write_from("常量类型", const_type)?;
+        match self {
+            ConstantValue::Null => {
+                Ok(())
+            }
+            ConstantValue::ConstantClass(class_index) => {
+                writer.write_from("Class常量", *class_index)
+            }
+            ConstantValue::ConstantFieldref(class_index, name_index) => {
+                writer.write_from("ConstantField ref: class index 值", *class_index)?;
+                writer.write_from("ConstantField ref: name index 值", *name_index)
+            }
+            ConstantValue::ConstantMethodref(class_index, name_index) => {
+                writer.write_from("ConstantField ref: class index 值", *class_index)?;
+                writer.write_from("ConstantField ref: name index 值", *name_index)
+            }
+            ConstantValue::ConstantInterfaceMethodref(class_index, name_index) => {
+                writer.write_from("ConstantField ref: class index 值", *class_index)?;
+                writer.write_from("ConstantField ref: name index 值", *name_index)
+            }
+            ConstantValue::ConstantString(utf8_index) => {
+                writer.write_from("String常量", *utf8_index)
+            }
+            ConstantValue::ConstantInteger(val) => {
+                writer.write_from("Integer常量", *val)
+            }
+            ConstantValue::ConstantFloat(val) => {
+                writer.write_from("Float常量", *val)
+            }
+            ConstantValue::ConstantLong(val) => {
+                writer.write_from("Long常量", *val)
+            }
+            ConstantValue::ConstantDouble(val) => {
+                writer.write_from("Double常量", *val)
+            }
+            ConstantValue::ConstantNameAndType(name_index, type_index) => {
+                writer.write_from("名字和描述符常量", *name_index)?;
+                writer.write_from("名字和描述符常量", *type_index)
+            }
+            ConstantValue::ConstantUtf8(val) => {
+                writer.write_bytes_with_pre_size("UTF8字符串常量", val.as_bytes())
+            }
+            ConstantValue::ConstantMethodHandle(kind_byte, ref_index) => {
+                writer.write_from("Method Handle常量", *kind_byte)?;
+                writer.write_from("Method Handle常量", *ref_index)
+            }
+            ConstantValue::ConstantMethodType(index) => {
+                writer.write_from("MethodType常量", *index)
+            }
+            ConstantValue::ConstantDynamic(bootstrap, name_and_type_index) => {
+                writer.write_from("Dynamic常量", *bootstrap)?;
+                writer.write_from("Dynamic常量", *name_and_type_index)
+            }
+            ConstantValue::ConstantInvokeDynamic(bootstrap, name_and_type_index) => {
+                writer.write_from("InvokeDynamic常量", *bootstrap)?;
+                writer.write_from("InvokeDynamic常量", *name_and_type_index)
+            }
+            ConstantValue::ConstantModule(index) => {
+                writer.write_from("模块名常量", *index)
+            }
+            ConstantValue::ConstantPackage(index) => {
+                writer.write_from("包名常量", *index)
+            }
+        }
+    }
+
     pub fn byte(&self) -> u8 {
         unsafe {
             *(self as *const ConstantValue as *const u8)
@@ -185,10 +253,10 @@ impl ConstantValue {
 }
 
 impl ConstantPool {
-    pub fn new(size: u16) -> ConstantPool {
+    pub fn new(capacity: u16) -> ConstantPool {
         let mut pool = ConstantPool {
             count: 0,
-            values: Vec::with_capacity(size as usize),
+            values: Vec::with_capacity(capacity as usize),
             cache: None
         };
         pool.values.push(ConstantItem {
@@ -198,18 +266,22 @@ impl ConstantPool {
         pool
     }
     pub fn new_with_reader<T: Read>(reader: &mut DataReader<T>) -> Result<ConstantPool> {
-        // let now = Instant::now();
         let name = "常量池";
         let pool_count: u16 = reader.read_to(name)?;
         let mut pool = ConstantPool::new(pool_count);
         for _ in 1..pool_count {
-            // let now = Instant::now();
             let value = ConstantValue::new_with_reader(reader)?;
-            // println!(">>>> pool item: {:?}: {:?}", now.elapsed(), &value);
             pool.add_constant_force(value);
         }
-        // println!(">>> pool: {:?}", now.elapsed());
         Ok(pool)
+    }
+
+    pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        writer.write_from("常量池长度", self.values.len() as u16)?;
+        for item in &self.values {
+            item.value.write_to(writer)?;
+        }
+        Ok(())
     }
 
     fn cache(&mut self) -> &mut HashMap<ConstantValue, u16> {

@@ -1,7 +1,7 @@
 use crate::attribute_info::OriginAttribute;
-use crate::support::data_reader::{DataReader, ReadToType};
+use crate::support::data_reader::{DataReader, DataWriter, ReadToType, WriteFromType};
 use crate::common::error::Result;
-use std::io::Read;
+use std::io::{Read, Write};
 
 #[derive(Clone, Debug)]
 pub struct MethodInfo {
@@ -27,5 +27,16 @@ impl MethodInfo {
             descriptor,
             attributes
         })
+    }
+
+    pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        writer.write_from("方法访问标识", self.access_flags)?;
+        writer.write_from("方法名", self.name)?;
+        writer.write_from("方法描述", self.descriptor)?;
+        writer.write_from("方法属性数量", self.attributes.len() as u16)?;
+        for attribute in &self.attributes {
+            attribute.write_to(writer)?;
+        }
+        Ok(())
     }
 }
