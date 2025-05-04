@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::fs::{read, File};
-use std::io::{BufReader, Cursor};
+use std::io::{Cursor};
 use std::time::Instant;
 use jclass::jclass_info::JClassInfo;
 use jclass::attribute_info::CodeAttribute;
@@ -10,13 +10,14 @@ use jclass::constant_pool::ConstantValue;
 
 #[test]
 fn base_test() {
+    #[allow(unused_variables)]
     let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
     let content = File::open(file_path).unwrap();
     let now = Instant::now();
     let mut  info = JClassInfo::from_reader(&mut content.into());
     println!(">> {:?}", now.elapsed().as_nanos());
-    if let Ok(inf) = info {
+    if let Ok(_) = info {
         // println!("{:?}", &info);
     }
 
@@ -85,6 +86,7 @@ fn base_test() {
 
 #[test]
 fn test_parser() {
+    #[allow(unused_variables)]
     let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
     let content = File::open(file_path).unwrap();
