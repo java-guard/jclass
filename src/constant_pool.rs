@@ -153,6 +153,9 @@ impl ConstantValue {
     }
 
     pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        if let ConstantValue::Null = self {
+            return Ok(())
+        }
         let const_type = self.value();
         writer.write_from("常量类型", const_type)?;
         match self {
@@ -221,8 +224,10 @@ impl ConstantValue {
     }
 
     pub fn byte_size(&self) -> usize {
-        match self {
-            ConstantValue::Null => { 0 }
+        size_of::<u8>() + match self {
+            ConstantValue::Null => {
+                return 0
+            }
             ConstantValue::ConstantClass(_) |
             ConstantValue::ConstantString(_) | ConstantValue::ConstantModule(_) |
             ConstantValue::ConstantPackage(_) | ConstantValue::ConstantMethodType(_) => {
@@ -321,7 +326,7 @@ impl ConstantPool {
     pub fn byte_size(&self) -> usize {
         let mut const_size = 0;
         for item in &self.values {
-            const_size += item.value.byte_size() + size_of::<u8>(); // u8为常量类型
+            const_size += item.value.byte_size()
         }
         size_of::<u16>() + const_size
     }

@@ -52,7 +52,7 @@ impl OriginAttribute {
 
     pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
         writer.write_from("属性名", self.name)?;
-        writer.write_from("属性名", self.data.len() as i32)?;
+        writer.write_from("属性数据长度", self.data.len() as i32)?;
         writer.write_bytes("属性数据", &self.data)
     }
 
@@ -103,11 +103,11 @@ impl CodeAttribute {
         let mut data = Vec::with_capacity(data_size);
         {
             let mut writer = DataWriter::from(BufWriter::new(&mut data));
-            writer.write_from("数据长度", data_size as u16)?;
             writer.write_from("操作栈最大深度", self.max_stack)?;
             writer.write_from("局部变量最大槽数", self.max_locals)?;
             writer.write_from("字节码长度", self.codes.len() as i32)?;
             writer.write_bytes("字节码", &self.codes)?;
+            self.exceptions.write_to(&mut writer)?;
             writer.write_from("属性数量", self.attributes.len() as u16)?;
             for attr in &self.attributes {
                 attr.write_to(&mut writer)?;
@@ -138,6 +138,15 @@ impl ExceptionTable {
     }
 
     #[inline]
+    fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        writer.write_from("异常表大小", self.entries.len() as u16)?;
+        for entry in &self.entries {
+            entry.write_to(writer)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
     pub fn byte_size(&self) -> usize {
         self.entries.len() * ExceptionTableEntry::byte_size()
     }
@@ -155,6 +164,14 @@ impl ExceptionTableEntry {
             handler_pc,
             catch_type,
         })
+    }
+
+    #[inline]
+    fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
+        writer.write_from("起始PC", self.start_pc)?;
+        writer.write_from("结束PC", self.end_pc)?;
+        writer.write_from("跳转PC", self.handler_pc)?;
+        writer.write_from("捕获类型", self.catch_type)
     }
 
     #[inline]

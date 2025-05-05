@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::fs::{read, File};
-use std::io::{BufWriter, Cursor};
+use std::io::{BufWriter, Cursor, Read};
 use std::time::Instant;
 use jclass::jclass_info::JClassInfo;
 use jclass::attribute_info::CodeAttribute;
@@ -11,12 +11,11 @@ use jclass::constant_pool::ConstantValue;
 #[test]
 fn base_test() {
     #[allow(unused_variables)]
-    let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
     let file_path = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
     let content = File::open(file_path).unwrap();
     let now = Instant::now();
-    let mut  info = JClassInfo::from_reader(&mut content.into());
+    let info = JClassInfo::from_reader(&mut content.into());
     println!(">> {:?}", now.elapsed().as_nanos());
     if let Ok(_) = info {
         // println!("{:?}", &info);
@@ -32,8 +31,8 @@ fn base_test() {
         // let cursor = Cursor::new(content_ref);
         let cursor = Cursor::new(&content);
         let now = Instant::now();
-        let mut info = JClassInfo::from_reader(&mut cursor.into());
-        if let Ok(mut info) = info {
+        let info = JClassInfo::from_reader(&mut cursor.into());
+        if let Ok(info) = info {
             let constant_count = info.constant_pool.get_constant_count();
             let mut index_set = HashSet::with_capacity(5);
             for i in 0..constant_count {
@@ -92,7 +91,7 @@ fn test_parser() {
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
     let content = File::open(file_path).unwrap();
     let now = Instant::now();
-    let mut  info = JClassInfo::from_reader(&mut content.into());
+    let  info = JClassInfo::from_reader(&mut content.into());
     println!(">> {:?}", now.elapsed().as_nanos());
     if let Ok(info) = info {
         println!("{:?}", &info);
@@ -117,8 +116,12 @@ fn test_to_bytes() {
     #[allow(unused_variables)]
     let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    let content = File::open(file_path).unwrap();
-    let mut info = JClassInfo::from_reader(&mut content.into()).unwrap();
+    let mut content = File::open(file_path).unwrap();
+    let mut content_data = Vec::new();
+    content.read_to_end(&mut content_data).unwrap();
+    println!("origin size: {}", content_data.len());
+    let cursor = Cursor::new(&content_data);
+    let info = JClassInfo::from_reader(&mut cursor.into()).unwrap();
     let size = info.byte_size();
     let now = Instant::now();
     let mut arr = Vec::new();
@@ -127,7 +130,10 @@ fn test_to_bytes() {
         info.write_to(&mut writer).unwrap();
 
         let use_time = now.elapsed();
-        println!(": {}", use_time.as_nanos())
+        println!(": {}", use_time.as_nanos());
+    }
+    if content_data != arr {
+        println!("\n\nto byte not equals with origin data")
     }
     println!("{size}");
     println!("{}", arr.len());
@@ -139,46 +145,53 @@ fn test_to_bytes() {
         info.write_to(&mut writer).unwrap();
 
         let use_time = now.elapsed();
-        println!(": {}", use_time.as_nanos())
+        println!(": {}", use_time.as_nanos());
+    }
+    if content_data != arr {
+        println!("\n\nto byte not equals with origin data: \n{:?}\n{:?}", &content_data, &arr);
     }
     println!("{size}");
     println!("{}", arr.len());
 
-    //
-    // let constant_count = info.constant_pool.get_constant_count();
-    // let mut index_set = HashSet::with_capacity(5);
-    // for i in 0..constant_count {
-    //     let value = info.constant_pool.get_constant_item(i);
-    //     match value {
-    //         ConstantValue::ConstantString(utf8_index) => {
-    //             if let ConstantValue::ConstantUtf8(utf8_str) = info.constant_pool.get_constant_item(*utf8_index) {
-    //                 if utf8_str == CODE_TAG {
-    //                     index_set.insert(i);
-    //                 }
-    //             }
-    //         }
-    //         ConstantValue::ConstantUtf8(utf8_str) => {
-    //             if utf8_str == CODE_TAG {
-    //                 index_set.insert(i);
-    //             }
-    //         }
-    //         _ => {}
-    //     }
-    // }
-    // for method_info in info.methods {
-    //     let mut has_code = false;
-    //     for attribute_info in method_info.attributes {
-    //         if index_set.contains(&attribute_info.name) {
-    //             if let Ok(attr) = CodeAttribute::new_with_data(&attribute_info.data) {
-    //                 if attr.codes.len() <= 0 {
-    //                     println!("{}", attr.codes.len());
-    //                 }
-    //                 has_code = true;
-    //             }
-    //         }
-    //     }
-    //     if !has_code && method_info.name != 161 {
-    //         println!("not found code");
-    //     }
-    // }
+
+    let constant_count = info.constant_pool.get_constant_count();
+    let mut index_set = HashSet::with_capacity(5);
+    for i in 0..constant_count {
+        let value = info.constant_pool.get_constant_item(i);
+        match value {
+            ConstantValue::ConstantString(utf8_index) => {
+                if let ConstantValue::ConstantUtf8(utf8_str) = info.constant_pool.get_constant_item(*utf8_index) {
+                    if utf8_str == CODE_TAG {
+                        index_set.insert(i);
+                    }
+                }
+            }
+            ConstantValue::ConstantUtf8(utf8_str) => {
+                if utf8_str == CODE_TAG {
+                    index_set.insert(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    for method_info in info.methods {
+        let mut has_code = false;
+        for attribute_info in method_info.attributes {
+            if index_set.contains(&attribute_info.name) {
+                if let Ok(attr) = CodeAttribute::new_with_data(&attribute_info.data) {
+                    if attr.codes.len() <= 0 {
+                        println!("{}", attr.codes.len());
+                    }
+                    has_code = true;
+                    let bytes = attr.to_bytes().unwrap();
+                    if bytes != attribute_info.data {
+                        println!("\n\ncode to byte not equals with origin data:\n{:?}\n---\n{:?}", &attribute_info.data, &bytes)
+                    }
+                }
+            }
+        }
+        if !has_code && method_info.name != 161 {
+            println!("not found code");
+        }
+    }
 }
