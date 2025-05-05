@@ -153,7 +153,7 @@ impl ConstantValue {
     }
 
     pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
-        let const_type = self.byte();
+        let const_type = self.value();
         writer.write_from("常量类型", const_type)?;
         match self {
             ConstantValue::Null => {
@@ -220,7 +220,41 @@ impl ConstantValue {
         }
     }
 
-    pub fn byte(&self) -> u8 {
+    pub fn byte_size(&self) -> usize {
+        match self {
+            ConstantValue::Null => { 0 }
+            ConstantValue::ConstantClass(_) |
+            ConstantValue::ConstantString(_) | ConstantValue::ConstantModule(_) |
+            ConstantValue::ConstantPackage(_) | ConstantValue::ConstantMethodType(_) => {
+                size_of::<u16>()
+            }
+            ConstantValue::ConstantFieldref(_, _) | ConstantValue::ConstantMethodref(_, _) |
+            ConstantValue::ConstantInterfaceMethodref(_, _) | ConstantValue::ConstantNameAndType(_, _) |
+            ConstantValue::ConstantDynamic(_, _) | ConstantValue::ConstantInvokeDynamic(_, _) => {
+                size_of::<[u16;2]>()
+            }
+            ConstantValue::ConstantMethodHandle(_, _) => {
+                size_of::<u16>() + size_of::<u8>()
+            }
+            ConstantValue::ConstantInteger(_) => {
+                size_of::<i32>()
+            }
+            ConstantValue::ConstantFloat(_) => {
+                size_of::<f32>()
+            }
+            ConstantValue::ConstantLong(_) => {
+                size_of::<i64>()
+            }
+            ConstantValue::ConstantDouble(_) => {
+                size_of::<f64>()
+            }
+            ConstantValue::ConstantUtf8(val) => {
+                val.as_bytes().len() + size_of::<u16>()
+            }
+        }
+    }
+
+    pub fn value(&self) -> u8 {
         unsafe {
             *(self as *const ConstantValue as *const u8)
         }
@@ -284,6 +318,14 @@ impl ConstantPool {
         Ok(())
     }
 
+    pub fn byte_size(&self) -> usize {
+        let mut const_size = 0;
+        for item in &self.values {
+            const_size += item.value.byte_size() + size_of::<u8>(); // u8为常量类型
+        }
+        size_of::<u16>() + const_size
+    }
+
     fn cache(&mut self) -> &mut HashMap<ConstantValue, u16> {
         match self.cache {
             Some(ref mut cache) => cache,
@@ -340,7 +382,7 @@ impl ConstantPool {
 
 impl Hash for ConstantValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.byte().hash(state);
+        self.value().hash(state);
         match self {
             ConstantValue::Null => {}
             ConstantValue::ConstantClass(v)|
@@ -388,7 +430,7 @@ impl PartialOrd<Self> for ConstantValue {
 
 impl Ord for ConstantValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        let ordering = self.byte().cmp(&other.byte());
+        let ordering = self.value().cmp(&other.value());
         if ordering != Ordering::Equal {
             return ordering;
         }

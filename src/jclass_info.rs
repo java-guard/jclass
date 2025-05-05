@@ -1,10 +1,10 @@
-use std::io::{Read, Write};
 use crate::attribute_info::OriginAttribute;
-use crate::common::error::{Result, MessageError};
+use crate::common::error::{MessageError, Result};
 use crate::constant_pool::ConstantPool;
 use crate::field_info::FieldInfo;
 use crate::method_info::MethodInfo;
 use crate::support::data_reader::{DataReader, DataWriter, ReadToType, WriteFromType};
+use std::io::{Read, Write};
 
 pub const JCLASS_MAGIC: u32 = 0xCAFEBABE;
 
@@ -106,5 +106,23 @@ impl JClassInfo {
             attribute.write_to(writer)?;
         }
         Ok(())
+    }
+
+    pub fn byte_size(&self) -> usize {
+        size_of::<u32>() +
+        size_of::<u16>() +
+        size_of::<u16>() +
+        self.constant_pool.byte_size() +
+        size_of::<u16>() +
+        size_of::<u16>() +
+        size_of::<u16>() +
+        size_of::<u16>() + // 接口数量
+        size_of::<u16>() * self.interfaces.len() +
+        size_of::<u16>() + // 字段数量
+        self.fields.iter().map(FieldInfo::byte_size).sum::<usize>() +
+        size_of::<u16>() + // 方法数量
+        self.methods.iter().map(MethodInfo::byte_size).sum::<usize>() +
+        size_of::<u16>() + // 属性数量
+        self.attributes.iter().map(OriginAttribute::byte_size).sum::<usize>()
     }
 }

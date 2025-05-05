@@ -1,7 +1,7 @@
 use crate::common::error::Result;
 use crate::support::data_reader::{DataReader, DataWriter, WriteFromType};
 use crate::support::data_reader::ReadToType;
-use std::io::{Cursor, Read, Write};
+use std::io::{BufWriter, Cursor, Read, Write};
 
 #[derive(Clone, Debug)]
 pub struct OriginAttribute {
@@ -36,7 +36,7 @@ pub struct ExceptionTableEntry {
 impl OriginAttribute {
     pub fn new_from_reader<T: Read>(reader: &mut DataReader<T>) -> Result<OriginAttribute> {
         let name_index: u16 = reader.read_to("属性名")?;
-        let len: u32 = reader.read_to("属性数据长度")?;
+        let len: i32 = reader.read_to("属性数据长度")?;
         let len = len as usize;
         let mut data = Vec::with_capacity(len);
         unsafe {
@@ -52,7 +52,14 @@ impl OriginAttribute {
 
     pub fn write_to<T: Write>(&self, writer: &mut DataWriter<T>) -> Result<()> {
         writer.write_from("属性名", self.name)?;
-        writer.write_bytes_with_pre_size("属性数据", &self.data)
+        writer.write_from("属性名", self.data.len() as i32)?;
+        writer.write_bytes("属性数据", &self.data)
+    }
+
+    #[inline]
+    pub fn byte_size(&self) -> usize {
+        size_of::<u16>() + size_of::<i32>() // data长度
+            + self.data.len()
     }
 }
 
@@ -90,6 +97,32 @@ impl CodeAttribute {
             attributes,
         })
     }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let data_size = self.byte_size();
+        let mut data = Vec::with_capacity(data_size);
+        {
+            let mut writer = DataWriter::from(BufWriter::new(&mut data));
+            writer.write_from("数据长度", data_size as u16)?;
+            writer.write_from("操作栈最大深度", self.max_stack)?;
+            writer.write_from("局部变量最大槽数", self.max_locals)?;
+            writer.write_from("字节码长度", self.codes.len() as i32)?;
+            writer.write_bytes("字节码", &self.codes)?;
+            writer.write_from("属性数量", self.attributes.len() as u16)?;
+            for attr in &self.attributes {
+                attr.write_to(&mut writer)?;
+            }
+        }
+        Ok(data)
+    }
+
+    pub fn byte_size(&self) -> usize {
+        let mut attrs_size = 0;
+        for attr in &self.attributes {
+            attrs_size += attr.byte_size();
+        }
+        self.codes.len() + size_of::<[u16;2]>() + self.exceptions.byte_size() + attrs_size
+    }
 }
 
 impl ExceptionTable {
@@ -102,6 +135,11 @@ impl ExceptionTable {
         Ok(ExceptionTable {
             entries,
         })
+    }
+
+    #[inline]
+    pub fn byte_size(&self) -> usize {
+        self.entries.len() * ExceptionTableEntry::byte_size()
     }
 }
 
@@ -118,9 +156,14 @@ impl ExceptionTableEntry {
             catch_type,
         })
     }
+
+    #[inline]
+    pub fn byte_size() -> usize {
+        size_of::<[u16;4]>()
+    }
 }
 
-// 专为JGLauncher提供，仅需用到CodeAttribute，所以咱不实现所有Attribute的解析
+// 专为JGLauncher提供，仅需用到CodeAttribute，所以暂不实现所有Attribute的解析
 // #[derive(Clone, Debug)]
 // pub enum AttributeInfo {
 //     AnnotationDefaultAttribute,

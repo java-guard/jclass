@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::fs::{read, File};
-use std::io::{Cursor};
+use std::io::{BufWriter, Cursor};
 use std::time::Instant;
 use jclass::jclass_info::JClassInfo;
 use jclass::attribute_info::CodeAttribute;
@@ -110,4 +110,75 @@ fn test_parser() {
         t += duration.as_nanos();
     }
     println!(">> {:?}", t);
+}
+
+#[test]
+fn test_to_bytes() {
+    #[allow(unused_variables)]
+    let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
+    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
+    let content = File::open(file_path).unwrap();
+    let mut info = JClassInfo::from_reader(&mut content.into()).unwrap();
+    let size = info.byte_size();
+    let now = Instant::now();
+    let mut arr = Vec::new();
+    {
+        let mut writer = BufWriter::new(&mut arr).into();
+        info.write_to(&mut writer).unwrap();
+
+        let use_time = now.elapsed();
+        println!(": {}", use_time.as_nanos())
+    }
+    println!("{size}");
+    println!("{}", arr.len());
+    let now = Instant::now();
+    let size = info.byte_size();
+    let mut arr = Vec::with_capacity(size);
+    {
+        let mut writer = BufWriter::new(&mut arr).into();
+        info.write_to(&mut writer).unwrap();
+
+        let use_time = now.elapsed();
+        println!(": {}", use_time.as_nanos())
+    }
+    println!("{size}");
+    println!("{}", arr.len());
+
+    //
+    // let constant_count = info.constant_pool.get_constant_count();
+    // let mut index_set = HashSet::with_capacity(5);
+    // for i in 0..constant_count {
+    //     let value = info.constant_pool.get_constant_item(i);
+    //     match value {
+    //         ConstantValue::ConstantString(utf8_index) => {
+    //             if let ConstantValue::ConstantUtf8(utf8_str) = info.constant_pool.get_constant_item(*utf8_index) {
+    //                 if utf8_str == CODE_TAG {
+    //                     index_set.insert(i);
+    //                 }
+    //             }
+    //         }
+    //         ConstantValue::ConstantUtf8(utf8_str) => {
+    //             if utf8_str == CODE_TAG {
+    //                 index_set.insert(i);
+    //             }
+    //         }
+    //         _ => {}
+    //     }
+    // }
+    // for method_info in info.methods {
+    //     let mut has_code = false;
+    //     for attribute_info in method_info.attributes {
+    //         if index_set.contains(&attribute_info.name) {
+    //             if let Ok(attr) = CodeAttribute::new_with_data(&attribute_info.data) {
+    //                 if attr.codes.len() <= 0 {
+    //                     println!("{}", attr.codes.len());
+    //                 }
+    //                 has_code = true;
+    //             }
+    //         }
+    //     }
+    //     if !has_code && method_info.name != 161 {
+    //         println!("not found code");
+    //     }
+    // }
 }

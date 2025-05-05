@@ -39,4 +39,13 @@ impl FieldInfo {
         }
         Ok(())
     }
+
+    //noinspection DuplicatedCode
+    pub fn byte_size(&self) -> usize {
+        let mut attrs_size = 0;
+        for attr in &self.attributes {
+            attrs_size += attr.byte_size();
+        }
+        attrs_size + size_of::<[u16;3]>() + size_of::<u16>() //字段属性数量
+    }
 }
