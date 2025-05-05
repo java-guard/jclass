@@ -7,6 +7,7 @@ use jclass::jclass_info::JClassInfo;
 use jclass::attribute_info::CodeAttribute;
 use jclass::common::constants::CODE_TAG;
 use jclass::constant_pool::ConstantValue;
+use jclass::util::class_attr_check::check_class_has_attribute;
 
 #[test]
 fn base_test() {
@@ -194,4 +195,25 @@ fn test_to_bytes() {
             println!("not found code");
         }
     }
+}
+
+#[test]
+fn test_class_check() {
+    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
+    let mut content = File::open(file_path).unwrap();
+    let mut content_data = Vec::new();
+    content.read_to_end(&mut content_data).unwrap();
+    match check_class_has_attribute(&content_data, "InnerClasses".as_bytes()).expect("???") {
+        None => {
+            println!("Not Found!")
+        }
+        Some(data) => {
+            println!("Found attribute, the data: {:?}", data)
+        }
+    }
+    let now = Instant::now();
+    for _ in 0..10000 {
+        let _ = check_class_has_attribute(&content_data, "InnerClasses".as_bytes());
+    }
+    println!(": {}", now.elapsed().as_nanos());
 }
