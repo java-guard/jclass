@@ -1,23 +1,26 @@
-use crate::classfile_constants::{JVM_CONSTANT_Class,
-                                 JVM_CONSTANT_Double,
-                                 JVM_CONSTANT_Dynamic,
-                                 JVM_CONSTANT_Fieldref,
-                                 JVM_CONSTANT_Float,
-                                 JVM_CONSTANT_Integer,
-                                 JVM_CONSTANT_InterfaceMethodref,
-                                 JVM_CONSTANT_InvokeDynamic,
-                                 JVM_CONSTANT_Long,
-                                 JVM_CONSTANT_MethodHandle,
-                                 JVM_CONSTANT_MethodType,
-                                 JVM_CONSTANT_Methodref,
-                                 JVM_CONSTANT_Module,
-                                 JVM_CONSTANT_NameAndType,
-                                 JVM_CONSTANT_Package,
-                                 JVM_CONSTANT_String,
-                                 JVM_CONSTANT_Utf8};
+use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Utf8,
+                                 JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic,
+                                 JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref,
+                                 JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String };
 use crate::common::error::{Result, MessageError};
 
-pub fn check_class_has_attribute<'a>(data: &'a [u8], attribute_name: &[u8]) -> Result<Option<&'a [u8]>> {
+#[derive(Debug)]
+pub struct DataRange {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Debug)]
+pub struct SimpleClassInfo {
+    pub constants_end: usize,
+    pub fields_start: usize,
+    pub methods_start: usize,
+    pub attributes_start: usize,
+    pub specify_attribute: Option<DataRange>,
+}
+
+pub fn fast_scan_class(data: & [u8], attribute_name: &[u8]) -> Result<Option<SimpleClassInfo>> {
     // magic + minor_version + major_version
     let mut index = 8;
     let constant_size = get_u16_from_data(data, &mut index)?;
@@ -30,30 +33,51 @@ pub fn check_class_has_attribute<'a>(data: &'a [u8], attribute_name: &[u8]) -> R
     }
     if data_key_index == 0 {
         return Ok(None);
+        // return Err(MessageError::new("未找到指定类属性"));
     }
+    let constants_end= index;
     // access_flags + class_index + superclass_index
     index += 6;
     // interface
     let interface_size = get_u16_from_data(data, &mut index)?;
     index += (interface_size as usize) << 1;
     // field
+    let fields_start= index;
     handle_field_or_method(data, &mut index)?;
     // method
+    let methods_start= index;
     handle_field_or_method(data, &mut index)?;
 
     // attribute
+    let attributes_start= index;
     let attr_size = get_u16_from_data(data, &mut index)?;
+    let mut specify_attribute = None;
     for _ in 0..attr_size {
         // name
         let name_index = get_u16_from_data(data, &mut index)?;
         let data_size = get_u32_from_data(data, &mut index)?;
-        if name_index == data_key_index {
-            return Ok(Some(&data[index..index+data_size as usize]));
-        }
-
+        let start = index;
         index += data_size as usize;
+        if name_index == data_key_index {
+            return if index > data.len() {
+                Err(MessageError::new("读取命中的属性内容时越界"))
+            } else {
+                specify_attribute = Some(DataRange {
+                    start,
+                    end: index,
+                });
+                break;
+                // Ok(Some(&data[start..index]))
+            }
+        }
     }
-    Ok(None)
+    Ok(Some(SimpleClassInfo {
+        constants_end,
+        fields_start,
+        methods_start,
+        attributes_start,
+        specify_attribute,
+    }))
 }
 
 #[inline]
@@ -69,7 +93,7 @@ fn handle_attributes(data: &[u8], index: &mut usize) -> Result<()> {
 }
 
 #[inline]
-fn handle_field_or_method(data: &[u8], index: &mut usize) -> Result<()> {
+pub fn handle_field_or_method(data: &[u8], index: &mut usize) -> Result<()> {
     let size = get_u16_from_data(data, index)?;
     for _ in 0..size {
         // access_flags + name + descriptor
@@ -81,7 +105,16 @@ fn handle_field_or_method(data: &[u8], index: &mut usize) -> Result<()> {
 
 #[inline]
 fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]) -> Result<bool> {
-    let type_ = data[*index];
+    // if *index >= data.len() {
+    //     return Err(MessageError::new("读取常量类型时越界"));
+    // }
+    let type_ = match data.get(*index) {
+        None => {
+            return Err(MessageError::new("读取常量类型时越界"));
+        }
+        Some(v) => *v
+    };
+    // let type_ = data[*index];
     *index += 1;
     *index += match type_.into() {
         0 => {
@@ -115,11 +148,12 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
         JVM_CONSTANT_Utf8 => {
             let str_size = get_u16_from_data(data, index)?;
             let str_size = str_size as usize;
-            if *index > data.len() - str_size {
+            let start = *index;
+            *index += str_size;
+            if *index > data.len() {
                 return Err(MessageError::new("读取utf8越界"))
             }
-            let eq = str_size == attribute_name.len() && &data[*index..*index + str_size] == attribute_name;
-            *index += str_size;
+            let eq = str_size == attribute_name.len() && &data[start..*index] == attribute_name;
             return Ok(eq);
         }
         _ => {
@@ -130,25 +164,27 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
 }
 
 #[inline]
-fn get_u16_from_data(data: &[u8], index: &mut usize) -> Result<u16> {
-    if *index > data.len() - 2 {
+pub fn get_u16_from_data(data: &[u8], index: &mut usize) -> Result<u16> {
+    let start = *index;
+    *index += 2;
+    if *index > data.len() {
         return Err(MessageError::new("读取u16越界"))
     }
     unsafe {
-        let ptr = data.as_ptr().add(*index) as *const u16;
-        *index += 2;
-        Ok((*ptr).swap_bytes())
+        let ptr = data.as_ptr().add(start) as *const u16;
+        Ok(u16::from_be(ptr.read_unaligned()))
     }
 }
 
 #[inline]
-fn get_u32_from_data(data: &[u8], index: &mut usize) -> Result<u32> {
-    if *index > data.len() - 4 {
+pub fn get_u32_from_data(data: &[u8], index: &mut usize) -> Result<u32> {
+    let start = *index;
+    *index += 4;
+    if *index > data.len() {
         return Err(MessageError::new("读取u32越界"))
     }
     unsafe {
-        let ptr = data.as_ptr().add(*index) as *const u32;
-        *index += 4;
-        Ok((*ptr).swap_bytes())
+        let ptr = data.as_ptr().add(start) as *const u32;
+        Ok(u32::from_be(ptr.read_unaligned()))
     }
 }

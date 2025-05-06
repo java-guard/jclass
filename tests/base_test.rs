@@ -7,13 +7,14 @@ use jclass::jclass_info::JClassInfo;
 use jclass::attribute_info::CodeAttribute;
 use jclass::common::constants::CODE_TAG;
 use jclass::constant_pool::ConstantValue;
-use jclass::util::class_attr_check::check_class_has_attribute;
+use jclass::util::class_attr_check::fast_scan_class;
+use jclass::util::class_data_parser::class_const_code_parse;
 
 #[test]
 fn base_test() {
     #[allow(unused_variables)]
     let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    let file_path = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
+    // let file_path = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
     let content = File::open(file_path).unwrap();
     let now = Instant::now();
     let info = JClassInfo::from_reader(&mut content.into());
@@ -203,7 +204,7 @@ fn test_class_check() {
     let mut content = File::open(file_path).unwrap();
     let mut content_data = Vec::new();
     content.read_to_end(&mut content_data).unwrap();
-    match check_class_has_attribute(&content_data, "InnerClasses".as_bytes()).expect("???") {
+    match fast_scan_class(&content_data, "InnerClasses".as_bytes()).expect("???").unwrap().specify_attribute {
         None => {
             println!("Not Found!")
         }
@@ -213,7 +214,23 @@ fn test_class_check() {
     }
     let now = Instant::now();
     for _ in 0..10000 {
-        let _ = check_class_has_attribute(&content_data, "InnerClasses".as_bytes());
+        let _ = fast_scan_class(&content_data, "InnerClasses2".as_bytes());
+    }
+    println!(": {}", now.elapsed().as_nanos());
+}
+
+#[test]
+fn parser_test() {
+    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
+    let mut content = File::open(file_path).unwrap();
+    let mut content_data = Vec::new();
+    content.read_to_end(&mut content_data).unwrap();
+    println!("size: {}", content_data.len());
+    let _info = class_const_code_parse(&content_data).expect("???");
+    // println!("{:#?}", &info);
+    let now = Instant::now();
+    for _ in 0..10000 {
+        let _ = class_const_code_parse(&content_data).expect("???");
     }
     println!(": {}", now.elapsed().as_nanos());
 }

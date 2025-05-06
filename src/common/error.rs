@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone)]
 pub struct MessageError {
-    msg: String
+    pub msg: String
 }
 
 #[macro_export]
