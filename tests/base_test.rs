@@ -10,12 +10,14 @@ use jclass::constant_pool::ConstantValue;
 use jclass::util::class_attr_check::fast_scan_class;
 use jclass::util::class_data_parser::class_const_code_parse;
 
+#[cfg(target_os = "linux")]
+const FILE_PATH: &str = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
+#[cfg(target_os = "windows")]
+const FILE_PATH: &str = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
+
 #[test]
 fn base_test() {
-    #[allow(unused_variables)]
-    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    // let file_path = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
-    let content = File::open(file_path).unwrap();
+    let content = File::open(FILE_PATH).unwrap();
     let now = Instant::now();
     let info = JClassInfo::from_reader(&mut content.into());
     println!(">> {:?}", now.elapsed().as_nanos());
@@ -23,7 +25,7 @@ fn base_test() {
         // println!("{:?}", &info);
     }
 
-    let content = read(file_path).unwrap();
+    let content = read(FILE_PATH).unwrap();
     let mut t = 0;
     let mut min_t = u128::MAX;
     let mut max_t = 0;
@@ -88,10 +90,7 @@ fn base_test() {
 
 #[test]
 fn test_parser() {
-    #[allow(unused_variables)]
-    let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
-    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    let content = File::open(file_path).unwrap();
+    let content = File::open(FILE_PATH).unwrap();
     let now = Instant::now();
     let  info = JClassInfo::from_reader(&mut content.into());
     println!(">> {:?}", now.elapsed().as_nanos());
@@ -99,7 +98,7 @@ fn test_parser() {
         println!("{:?}", &info);
     }
 
-    let content = read(file_path).unwrap();
+    let content = read(FILE_PATH).unwrap();
     let mut t = 0;
     for _ in 0..10000 {
         // let content_ref = content.clone();
@@ -115,10 +114,7 @@ fn test_parser() {
 
 #[test]
 fn test_to_bytes() {
-    #[allow(unused_variables)]
-    let file_path = "D:\\data\\code\\idea\\test-all\\target\\classes\\cn\\kyle\\test\\all\\base\\HutoolScriptTest.class";
-    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    let mut content = File::open(file_path).unwrap();
+    let mut content = File::open(FILE_PATH).unwrap();
     let mut content_data = Vec::new();
     content.read_to_end(&mut content_data).unwrap();
     println!("origin size: {}", content_data.len());
@@ -200,29 +196,27 @@ fn test_to_bytes() {
 
 #[test]
 fn test_class_check() {
-    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    let mut content = File::open(file_path).unwrap();
+    let mut content = File::open(FILE_PATH).unwrap();
     let mut content_data = Vec::new();
     content.read_to_end(&mut content_data).unwrap();
-    match fast_scan_class(&content_data, "InnerClasses".as_bytes()).expect("???").unwrap().specify_attribute {
-        None => {
-            println!("Not Found!")
-        }
-        Some(data) => {
-            println!("Found attribute, the data: {:?}", data)
-        }
-    }
+    let name_bytes = "InnerClasses".as_bytes();
+    println!("class info: {:?}", fast_scan_class(&content_data, name_bytes));
     let now = Instant::now();
     for _ in 0..10000 {
-        let _ = fast_scan_class(&content_data, "InnerClasses2".as_bytes());
+        let _ = fast_scan_class(&content_data, name_bytes);
+    }
+    println!(": {}", now.elapsed().as_nanos());
+    println!("class info: {:?}", fast_scan_class(&content_data, &[]));
+    let now = Instant::now();
+    for _ in 0..10000 {
+        let _ = fast_scan_class(&content_data, &[]);
     }
     println!(": {}", now.elapsed().as_nanos());
 }
 
 #[test]
 fn parser_test() {
-    let file_path = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
-    let mut content = File::open(file_path).unwrap();
+    let mut content = File::open(FILE_PATH).unwrap();
     let mut content_data = Vec::new();
     content.read_to_end(&mut content_data).unwrap();
     println!("size: {}", content_data.len());

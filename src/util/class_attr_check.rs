@@ -1,9 +1,7 @@
-use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Utf8,
-                                 JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic,
-                                 JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref,
-                                 JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String };
-use crate::common::error::{Result, MessageError};
+use crate::classfile_constants::{JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Dynamic, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_MethodType, JVM_CONSTANT_Methodref, JVM_CONSTANT_Module, JVM_CONSTANT_NameAndType, JVM_CONSTANT_Package, JVM_CONSTANT_String, JVM_CONSTANT_Utf8, _bindgen_ty_3};
+use crate::common::error::{MessageError, Result};
 
+#[repr(C, align(8))]
 #[derive(Debug)]
 pub struct DataRange {
     pub start: usize,
@@ -20,20 +18,23 @@ pub struct SimpleClassInfo {
     pub specify_attribute: Option<DataRange>,
 }
 
+const EMPTY: &[u8] = &[];
+
 pub fn fast_scan_class(data: & [u8], attribute_name: &[u8]) -> Result<Option<SimpleClassInfo>> {
     // magic + minor_version + major_version
     let mut index = 8;
     let constant_size = get_u16_from_data(data, &mut index)?;
     let mut data_key_index = 0;
+    let mut name_found = false;
     for i in 1..constant_size {
-        let is_data_key = get_constant_value_size(data, &mut index, attribute_name)?;
+        let is_data_key = get_constant_value_size(data, &mut index, attribute_name, name_found)?;
         if is_data_key {
+            name_found = true;
             data_key_index = i;
         }
     }
     if data_key_index == 0 {
         return Ok(None);
-        // return Err(MessageError::new("未找到指定类属性"));
     }
     let constants_end= index;
     // access_flags + class_index + superclass_index
@@ -67,7 +68,6 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8]) -> Result<Option<Sim
                     end: index,
                 });
                 break;
-                // Ok(Some(&data[start..index]))
             }
         }
     }
@@ -104,21 +104,36 @@ pub fn handle_field_or_method(data: &[u8], index: &mut usize) -> Result<()> {
 }
 
 #[inline]
-fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]) -> Result<bool> {
-    // if *index >= data.len() {
-    //     return Err(MessageError::new("读取常量类型时越界"));
-    // }
+fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8], name_found: bool) -> Result<bool> {
     let type_ = match data.get(*index) {
         None => {
             return Err(MessageError::new("读取常量类型时越界"));
         }
         Some(v) => *v
     };
-    // let type_ = data[*index];
     *index += 1;
-    *index += match type_.into() {
-        0 => {
-            0
+    *index += match type_ as _bindgen_ty_3 {
+        JVM_CONSTANT_Utf8 => {
+            let str_size = get_u16_from_data(data, index)?;
+            let str_size = str_size as usize;
+            if name_found || str_size != attribute_name.len() {
+                *index += str_size;
+                return Ok(false);
+            }
+            let start = *index;
+            *index += str_size;
+            if *index > data.len() {
+                return Err(MessageError::new("读取utf8越界"))
+            }
+
+            let eq = &data[start..*index] == attribute_name;
+            return Ok(eq);
+        }
+        JVM_CONSTANT_Integer | JVM_CONSTANT_Float => {
+            size_of::<i32>()
+        }
+        JVM_CONSTANT_Long | JVM_CONSTANT_Double=> {
+            size_of::<i64>()
         }
         JVM_CONSTANT_Class |
         JVM_CONSTANT_String | JVM_CONSTANT_Module |
@@ -132,29 +147,6 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
         }
         JVM_CONSTANT_MethodHandle => {
             size_of::<u16>() + size_of::<u8>()
-        }
-        JVM_CONSTANT_Integer => {
-            size_of::<i32>()
-        }
-        JVM_CONSTANT_Float => {
-            size_of::<f32>()
-        }
-        JVM_CONSTANT_Long => {
-            size_of::<i64>()
-        }
-        JVM_CONSTANT_Double => {
-            size_of::<f64>()
-        }
-        JVM_CONSTANT_Utf8 => {
-            let str_size = get_u16_from_data(data, index)?;
-            let str_size = str_size as usize;
-            let start = *index;
-            *index += str_size;
-            if *index > data.len() {
-                return Err(MessageError::new("读取utf8越界"))
-            }
-            let eq = str_size == attribute_name.len() && &data[start..*index] == attribute_name;
-            return Ok(eq);
         }
         _ => {
             0
