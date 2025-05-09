@@ -200,16 +200,16 @@ fn test_class_check() {
     let mut content_data = Vec::new();
     content.read_to_end(&mut content_data).unwrap();
     let name_bytes = "InnerClasses".as_bytes();
-    println!("class info: {:?}", fast_scan_class(&content_data, name_bytes));
+    println!("class info: {:?}", fast_scan_class(&content_data, name_bytes, false));
     let now = Instant::now();
     for _ in 0..10000 {
-        let _ = fast_scan_class(&content_data, name_bytes);
+        let _ = fast_scan_class(&content_data, name_bytes, false);
     }
     println!(": {}", now.elapsed().as_nanos());
-    println!("class info: {:?}", fast_scan_class(&content_data, &[]));
+    println!("class info: {:?}", fast_scan_class(&content_data, &[], true));
     let now = Instant::now();
     for _ in 0..10000 {
-        let _ = fast_scan_class(&content_data, &[]);
+        let _ = fast_scan_class(&content_data, &[], true);
     }
     println!(": {}", now.elapsed().as_nanos());
 }

@@ -18,14 +18,13 @@ pub struct SimpleClassInfo {
     pub specify_attribute: Option<DataRange>,
 }
 
-const EMPTY: &[u8] = &[];
-
-pub fn fast_scan_class(data: & [u8], attribute_name: &[u8]) -> Result<Option<SimpleClassInfo>> {
+#[inline]
+pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool) -> Result<Option<SimpleClassInfo>> {
     // magic + minor_version + major_version
     let mut index = 8;
     let constant_size = get_u16_from_data(data, &mut index)?;
     let mut data_key_index = 0;
-    let mut name_found = false;
+    let mut name_found = not_check_attr;
     for i in 1..constant_size {
         let is_data_key = get_constant_value_size(data, &mut index, attribute_name, name_found)?;
         if is_data_key {
@@ -33,51 +32,52 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8]) -> Result<Option<Sim
             data_key_index = i;
         }
     }
-    if data_key_index == 0 {
-        return Ok(None);
-    }
-    let constants_end= index;
-    // access_flags + class_index + superclass_index
-    index += 6;
-    // interface
-    let interface_size = get_u16_from_data(data, &mut index)?;
-    index += (interface_size as usize) << 1;
-    // field
-    let fields_start= index;
-    handle_field_or_method(data, &mut index)?;
-    // method
-    let methods_start= index;
-    handle_field_or_method(data, &mut index)?;
+    if name_found {
+        let constants_end = index;
+        // access_flags + class_index + superclass_index
+        index += 6;
+        // interface
+        let interface_size = get_u16_from_data(data, &mut index)?;
+        index += (interface_size as usize) << 1;
+        // field
+        let fields_start = index;
+        handle_field_or_method(data, &mut index)?;
+        // method
+        let methods_start = index;
+        handle_field_or_method(data, &mut index)?;
 
-    // attribute
-    let attributes_start= index;
-    let attr_size = get_u16_from_data(data, &mut index)?;
-    let mut specify_attribute = None;
-    for _ in 0..attr_size {
-        // name
-        let name_index = get_u16_from_data(data, &mut index)?;
-        let data_size = get_u32_from_data(data, &mut index)?;
-        let start = index;
-        index += data_size as usize;
-        if name_index == data_key_index {
-            return if index > data.len() {
-                Err(MessageError::new("读取命中的属性内容时越界"))
-            } else {
-                specify_attribute = Some(DataRange {
-                    start,
-                    end: index,
-                });
-                break;
+        // attribute
+        let attributes_start = index;
+        let attr_size = get_u16_from_data(data, &mut index)?;
+        let mut specify_attribute = None;
+        for _ in 0..attr_size {
+            // name
+            let name_index = get_u16_from_data(data, &mut index)?;
+            let data_size = get_u32_from_data(data, &mut index)?;
+            let start = index;
+            index += data_size as usize;
+            if name_index == data_key_index {
+                return if index > data.len() {
+                    Err(MessageError::new("读取命中的属性内容时越界"))
+                } else {
+                    specify_attribute = Some(DataRange {
+                        start,
+                        end: index,
+                    });
+                    break;
+                }
             }
         }
+        Ok(Some(SimpleClassInfo {
+            constants_end,
+            fields_start,
+            methods_start,
+            attributes_start,
+            specify_attribute,
+        }))
+    } else { 
+        Ok(None)
     }
-    Ok(Some(SimpleClassInfo {
-        constants_end,
-        fields_start,
-        methods_start,
-        attributes_start,
-        specify_attribute,
-    }))
 }
 
 #[inline]
