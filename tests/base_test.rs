@@ -7,8 +7,7 @@ use jclass::jclass_info::JClassInfo;
 use jclass::attribute_info::CodeAttribute;
 use jclass::common::constants::CODE_TAG;
 use jclass::constant_pool::ConstantValue;
-use jclass::util::class_attr_check::fast_scan_class;
-use jclass::util::class_data_parser::class_const_code_parse;
+use jclass::util::class_scan::fast_scan_class;
 
 #[cfg(target_os = "linux")]
 const FILE_PATH: &str = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
@@ -210,21 +209,6 @@ fn test_class_check() {
     let now = Instant::now();
     for _ in 0..10000 {
         let _ = fast_scan_class(&content_data, &[], true);
-    }
-    println!(": {}", now.elapsed().as_nanos());
-}
-
-#[test]
-fn parser_test() {
-    let mut content = File::open(FILE_PATH).unwrap();
-    let mut content_data = Vec::new();
-    content.read_to_end(&mut content_data).unwrap();
-    println!("size: {}", content_data.len());
-    let _info = class_const_code_parse(&content_data).expect("???");
-    // println!("{:#?}", &info);
-    let now = Instant::now();
-    for _ in 0..10000 {
-        let _ = class_const_code_parse(&content_data).expect("???");
     }
     println!(": {}", now.elapsed().as_nanos());
 }
