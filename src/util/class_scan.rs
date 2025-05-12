@@ -14,6 +14,7 @@ pub struct SimpleClassInfo {
     pub consts: Vec<usize>,
     pub fields_start: usize,
     pub methods_start: usize,
+    pub method_codes: Vec<(usize, usize)>,
     pub attributes_start: usize,
     pub specify_attribute: Option<DataRange>,
 }
@@ -36,10 +37,19 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
     }
     consts[0] = index;
     let attribute_name_len = attribute_name.len();
+    let mut find_code = true;
+    let mut code_index = 0;
     for i in 1..constant_size {
-        if get_constant_value_size(data, &mut index, attribute_name, attribute_name_len, name_found)? {
-            name_found = true;
-            data_key_index = i;
+        match get_constant_value_size(data, &mut index, attribute_name, attribute_name_len, name_found, find_code)? {
+            1 => {
+                name_found = true;
+                data_key_index = i;
+            }
+            2 => {
+                find_code = false;
+                code_index = i;
+            }
+            _ => {}
         }
         consts[i] = index;
     }
@@ -55,7 +65,30 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
         handle_field_or_method(data, &mut index)?;
         // method
         let methods_start = index;
-        handle_field_or_method(data, &mut index)?;
+        // handle_field_or_method(data, &mut index)?;
+        let code_index_bytes = (code_index as u16).to_be_bytes();
+        let size = get_u16_from_data(data, &mut index)?;
+        let size = size as usize;
+        let mut method_codes = vec![(0,0); size];
+        // unsafe {
+        //     method_codes.set_len(size as usize);
+        // }
+        for i in 0..size {
+            // access_flags + name + descriptor
+            index += 6;
+            // handle_attributes(data, &mut index)?;
+            let attr_size = get_u16_from_data(data, &mut index)?;
+            for _ in 0..attr_size {
+                // name
+                let start = index;
+                index += 2;
+                let data_size = get_u32_from_data(data, &mut index)?;
+                index += data_size as usize;
+                if &data[start..start+2] == &code_index_bytes {
+                    method_codes[i] = (start, index);
+                }
+            }
+        }
 
         // attribute
         let attributes_start = index;
@@ -84,6 +117,7 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
             consts,
             fields_start,
             methods_start,
+            method_codes,
             attributes_start,
             specify_attribute,
         }))
@@ -92,7 +126,7 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
     }
 }
 
-#[inline]
+#[inline(always)]
 fn handle_attributes(data: &[u8], index: &mut usize) -> Result<()> {
     let attr_size = get_u16_from_data(data, index)?;
     for _ in 0..attr_size {
@@ -104,7 +138,7 @@ fn handle_attributes(data: &[u8], index: &mut usize) -> Result<()> {
     Ok(())
 }
 
-#[inline]
+#[inline(always)]
 pub fn handle_field_or_method(data: &[u8], index: &mut usize) -> Result<()> {
     let size = get_u16_from_data(data, index)?;
     for _ in 0..size {
@@ -116,7 +150,7 @@ pub fn handle_field_or_method(data: &[u8], index: &mut usize) -> Result<()> {
 }
 
 #[inline]
-fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8], attribute_name_len: usize, name_found: bool) -> Result<bool> {
+fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8], attribute_name_len: usize, name_found: bool, find_code: bool) -> Result<i8> {
     let type_ = match data.get(*index) {
         None => {
             return Err(MessageError::new("读取常量类型时越界"));
@@ -128,9 +162,20 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
         JVM_CONSTANT_Utf8 => {
             let str_size = get_u16_from_data(data, index)?;
             let str_size = str_size as usize;
+            if find_code && str_size == CODE_ATTR_NAME_LEN {
+                let end = *index + CODE_ATTR_NAME_LEN;
+                if end > data.len() {
+                    return Err(MessageError::new("读取utf8越界"))
+                }
+
+                if &data[*index..end] == CODE_ATTR_NAME {
+                    *index += CODE_ATTR_NAME_LEN;
+                    return Ok(2);
+                }
+            }
             if name_found || str_size != attribute_name_len {
                 *index += str_size;
-                return Ok(false);
+                return Ok(0);
             } else {
                 let start = *index;
                 *index += str_size;
@@ -139,7 +184,7 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
                 }
 
                 let eq = &data[start..*index] == attribute_name;
-                return Ok(eq);
+                return Ok(eq as i8);
             }
         }
         JVM_CONSTANT_Integer | JVM_CONSTANT_Float => {
@@ -165,10 +210,10 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
             0
         }
     };
-    Ok(false)
+    Ok(0)
 }
 
-#[inline]
+#[inline(always)]
 pub fn get_u16_from_data(data: &[u8], index: &mut usize) -> Result<u16> {
     let start = *index;
     *index += 2;
@@ -181,7 +226,7 @@ pub fn get_u16_from_data(data: &[u8], index: &mut usize) -> Result<u16> {
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn get_u32_from_data(data: &[u8], index: &mut usize) -> Result<u32> {
     let start = *index;
     *index += 4;
