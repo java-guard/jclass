@@ -27,21 +27,21 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
     // magic + minor_version + major_version
     let mut index = 8;
     let constant_size = get_u16_from_data(data, &mut index)?;
+    let constant_size = constant_size as usize;
     let mut data_key_index = 0;
     let mut name_found = not_check_attr;
-    let mut consts = Vec::with_capacity(constant_size as usize);
-    consts.push(8);
+    let mut consts = Vec::with_capacity(constant_size);
+    unsafe {
+        consts.set_len(constant_size);
+    }
+    consts[0] = index;
     let attribute_name_len = attribute_name.len();
     for i in 1..constant_size {
         if get_constant_value_size(data, &mut index, attribute_name, attribute_name_len, name_found)? {
-                name_found = true;
-                data_key_index = i;
+            name_found = true;
+            data_key_index = i;
         }
-        // if is_data_key {
-        //     name_found = true;
-        //     data_key_index = i;
-        // }
-        consts.push(index);
+        consts[i] = index;
     }
     if name_found {
         let constants_end = index;
@@ -61,6 +61,7 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
         let attributes_start = index;
         let attr_size = get_u16_from_data(data, &mut index)?;
         let mut specify_attribute = None;
+        let data_key_index = data_key_index as u16;
         for _ in 0..attr_size {
             // name
             let name_index = get_u16_from_data(data, &mut index)?;
