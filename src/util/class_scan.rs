@@ -8,6 +8,7 @@ pub struct DataRange {
     pub end: usize,
 }
 
+/// consts 中每个元素为每个常量的截止索引（不含索引指向的值），首元素为第一个常量的开始索引
 #[repr(C, align(8))]
 #[derive(Debug)]
 pub struct SimpleClassInfo {
@@ -69,15 +70,15 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
         let code_index_bytes = (code_index as u16).to_be_bytes();
         let size = get_u16_from_data(data, &mut index)?;
         let size = size as usize;
-        let mut method_codes = vec![(0,0); size];
-        // unsafe {
-        //     method_codes.set_len(size as usize);
-        // }
+        let mut method_codes = Vec::with_capacity(size);
+        unsafe {
+            method_codes.set_len(size);
+        }
         for i in 0..size {
             // access_flags + name + descriptor
             index += 6;
-            // handle_attributes(data, &mut index)?;
             let attr_size = get_u16_from_data(data, &mut index)?;
+            let mut code_range = (0, 0);
             for _ in 0..attr_size {
                 // name
                 let start = index;
@@ -85,9 +86,10 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
                 let data_size = get_u32_from_data(data, &mut index)?;
                 index += data_size as usize;
                 if &data[start..start+2] == &code_index_bytes {
-                    method_codes[i] = (start, index);
+                    code_range = (start, index);
                 }
             }
+            method_codes[i] = code_range;
         }
 
         // attribute
