@@ -310,7 +310,15 @@ impl ConstantPool {
         let mut pool = ConstantPool::new(pool_count);
         for _ in 1..pool_count {
             let value = ConstantValue::new_with_reader(reader)?;
-            pool.add_constant_force(value);
+            match &value {
+                ConstantValue::ConstantLong(_) | ConstantValue::ConstantDouble(_) => {
+                    pool.add_constant_force(value);
+                    pool.add_constant_force(ConstantValue::Null);
+                },
+                _ => {
+                    pool.add_constant_force(value);
+                }
+            };
         }
         Ok(pool)
     }

@@ -40,7 +40,8 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
     let attribute_name_len = attribute_name.len();
     let mut find_code = true;
     let mut code_index = 0;
-    for i in 1..constant_size {
+    let mut i = 1;
+    while i < constant_size {
         match get_constant_value_size(data, &mut index, attribute_name, attribute_name_len, name_found, find_code)? {
             1 => {
                 name_found = true;
@@ -50,9 +51,17 @@ pub fn fast_scan_class(data: & [u8], attribute_name: &[u8], not_check_attr: bool
                 find_code = false;
                 code_index = i;
             }
+            3 => {
+                consts[i] = index;
+                i += 1;
+                consts[i] = index;
+                i += 1;
+                continue
+            }
             _ => {}
         }
         consts[i] = index;
+        i += 1;
     }
     if name_found {
         let constants_end = index;
@@ -193,7 +202,8 @@ fn get_constant_value_size(data: &[u8], index: &mut usize, attribute_name: &[u8]
             size_of::<i32>()
         }
         JVM_CONSTANT_Long | JVM_CONSTANT_Double=> {
-            size_of::<i64>()
+            *index += size_of::<i64>();
+            return Ok(3);
         }
         JVM_CONSTANT_Class |
         JVM_CONSTANT_String | JVM_CONSTANT_Module |

@@ -10,7 +10,7 @@ use jclass::constant_pool::ConstantValue;
 use jclass::util::class_scan::fast_scan_class;
 
 #[cfg(target_os = "linux")]
-const FILE_PATH: &str = "/home/kyle/data/code/java/JavaGuard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
+const FILE_PATH: &str = "/home/kyle/data/code/java/java-guard/target/classes/io/kyle/javaguard/transform/ClassTransformer.class";
 #[cfg(target_os = "windows")]
 const FILE_PATH: &str = "D:\\data\\code\\project\\JavaGuard\\JavaGuard\\target\\classes\\javassist\\bytecode\\ClassDecryption.class";
 
