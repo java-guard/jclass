@@ -308,15 +308,19 @@ impl ConstantPool {
         let name = "常量池";
         let pool_count: u16 = reader.read_to(name)?;
         let mut pool = ConstantPool::new(pool_count);
-        for _ in 1..pool_count {
+        let mut i = 1;
+        while i < pool_count {
+        // for _ in 1..pool_count {
             let value = ConstantValue::new_with_reader(reader)?;
             match &value {
                 ConstantValue::ConstantLong(_) | ConstantValue::ConstantDouble(_) => {
                     pool.add_constant_force(value);
                     pool.add_constant_force(ConstantValue::Null);
+                    i+=2;
                 },
                 _ => {
                     pool.add_constant_force(value);
+                    i += 1;
                 }
             };
         }

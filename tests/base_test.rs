@@ -212,3 +212,12 @@ fn test_class_check() {
     }
     println!(": {}", now.elapsed().as_nanos());
 }
+
+#[test]
+fn test_url_class_parse() {
+    let mut content = File::open("URL.class").unwrap();
+    let mut content_data = Vec::new();
+    content.read_to_end(&mut content_data).unwrap();
+    let info = JClassInfo::from_reader(&mut Cursor::new(content_data).into());
+    println!("{:?}", &info);
+}
