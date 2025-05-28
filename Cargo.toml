@@ -1,8 +1,8 @@
 [package]
 name = "jclass"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
-build = "build/build.rs"
+#build = "build/build.rs"
 description = "a simple lib for java class file parse or edit"
 license = "Apache-2.0"
 repository = "https://github.com/JavaGuard/jclass"
@@ -13,5 +13,5 @@ repository = "https://github.com/JavaGuard/jclass"
 [dependencies]
 
 
-[build-dependencies]
-bindgen="0.70"
+#[build-dependencies]
+#bindgen="0.70"
